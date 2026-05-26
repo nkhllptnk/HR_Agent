@@ -82,6 +82,7 @@ class ModuleProgress(Base):
     score = Column(Integer, default=0)          # correct answers count
     total_questions = Column(Integer, default=0)
     completed_at = Column(String, nullable=True)
+    attempt_count = Column(Integer, default=0)   #count log
 
 class PasswordResetToken(Base):
     __tablename__ = "password_reset_tokens"

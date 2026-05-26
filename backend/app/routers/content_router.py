@@ -19,17 +19,83 @@ os.makedirs(UPLOAD_DIR, exist_ok=True)
 def get_all_content(db: Session = Depends(get_db)):
     return db.query(models.Content).order_by(models.Content.order).all()
 
-@router.post("/", response_model=schemas.ContentResponse)
-def create_content(
-    data: schemas.ContentCreate,
+@router.post("/complete-module", response_model=schemas.ModuleProgressResponse)
+def complete_module(
+    data: schemas.ModuleProgressCreate,
     db: Session = Depends(get_db),
-    current_user: models.User = Depends(auth.require_role([models.RoleEnum.hr, models.RoleEnum.admin]))
+    current_user: models.User = Depends(auth.get_current_user)
 ):
-    new_content = models.Content(**data.dict())
-    db.add(new_content)
-    db.commit()
-    db.refresh(new_content)
-    return new_content
+    passed = data.total_questions > 0 and (data.score / data.total_questions) >= 0.5
+
+    existing = db.query(models.ModuleProgress).filter(
+        models.ModuleProgress.user_id == current_user.id,
+        models.ModuleProgress.content_id == data.content_id
+    ).first()
+
+    if existing:
+        # Already passed this module, no need to do anything
+        if existing.completed:
+            return existing
+
+        # Check attempt limit BEFORE counting this attempt
+        if existing.attempt_count >= 2:
+            existing.attempt_count = 0
+            existing.completed = False
+            existing.score = 0
+            db.commit()
+            db.refresh(existing)
+            raise HTTPException(
+                status_code=403,
+                detail="Maximum attempts reached. You have been reassigned to the module."
+            )
+
+        # Count this attempt
+        existing.attempt_count += 1
+
+        if passed:
+            existing.completed = True
+            existing.score = data.score
+            existing.total_questions = data.total_questions
+            existing.completed_at = datetime.now().isoformat()
+        else:
+            existing.score = data.score
+            existing.total_questions = data.total_questions
+
+        db.commit()
+        db.refresh(existing)
+        return existing
+
+    else:
+        # First attempt ever
+        new_progress = models.ModuleProgress(
+            user_id=current_user.id,
+            content_id=data.content_id,
+            completed=passed,
+            score=data.score,
+            total_questions=data.total_questions,
+            attempt_count=1,
+            completed_at=datetime.now().isoformat() if passed else None
+        )
+        db.add(new_progress)
+
+        # Update overall onboarding progress only if passed
+        if passed:
+            onboarding = db.query(models.OnboardingProgress).filter(
+                models.OnboardingProgress.user_id == current_user.id
+            ).first()
+            if onboarding:
+                all_content_count = db.query(models.Content).count()
+                completed_count = db.query(models.ModuleProgress).filter(
+                    models.ModuleProgress.user_id == current_user.id,
+                    models.ModuleProgress.completed == True
+                ).count() + 1
+                if all_content_count > 0:
+                    onboarding.completion_percentage = int((completed_count / all_content_count) * 100)
+                onboarding.last_activity_at = datetime.now().isoformat()
+
+        db.commit()
+        db.refresh(new_progress)
+        return new_progress
 
 @router.put("/{content_id}", response_model=schemas.ContentResponse)
 def update_content(

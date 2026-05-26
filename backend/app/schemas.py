@@ -80,5 +80,6 @@ class ModuleProgressResponse(BaseModel):
     score: int
     total_questions: int
     completed_at: Optional[str] = None
+    attempt_count: int = 0
     class Config:
         from_attributes = True
