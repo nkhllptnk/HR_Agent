@@ -91,3 +91,19 @@ class PasswordResetToken(Base):
     token = Column(String, unique=True, index=True)
     expires_at = Column(String)   # ISO string
     used = Column(Boolean, default=False)
+class SubmissionStatus(str, enum.Enum):
+    pending = "pending"
+    approved = "approved"
+    rejected = "rejected"
+
+class EmployeeSubmission(Base):
+    __tablename__ = "employee_submissions"
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, index=True)
+    full_name = Column(String)
+    address = Column(String)
+    emergency_contact = Column(String)
+    document_url = Column(String, nullable=True)
+    status = Column(Enum(SubmissionStatus), default=SubmissionStatus.pending)
+    hr_remark = Column(String, nullable=True)
+    submitted_at = Column(String, nullable=True)

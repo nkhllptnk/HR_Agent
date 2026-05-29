@@ -83,3 +83,26 @@ class ModuleProgressResponse(BaseModel):
     attempt_count: int = 0
     class Config:
         from_attributes = True
+
+# Employee Submission Schemas
+class SubmissionCreate(BaseModel):
+    full_name: str
+    address: str
+    emergency_contact: str
+
+class SubmissionStatusUpdate(BaseModel):
+    status: str
+    hr_remark: Optional[str] = None
+
+class SubmissionResponse(BaseModel):
+    id: int
+    user_id: int
+    full_name: str
+    address: str
+    emergency_contact: str
+    document_url: Optional[str] = None
+    status: str
+    hr_remark: Optional[str] = None
+    submitted_at: Optional[str] = None
+    class Config:
+        from_attributes = True
