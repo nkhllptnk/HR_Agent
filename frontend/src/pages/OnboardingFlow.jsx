@@ -30,18 +30,32 @@ const OnboardingFlow = () => {
       setContents(allContents);
       setCompletedIds(doneIds);
 
-      // Resume from the first non-completed content module
-      let resumeStep = 1;
-      for (let i = 0; i < allContents.length; i++) {
-        if (doneIds.has(allContents[i].id)) {
-          resumeStep = i + 2; // advance past this one
-        } else {
-          break; // stop at first incomplete
-        }
+      // Check if acknowledgement already done
+      let ackDone = false;
+      try {
+        await api.get('/data/my-acknowledgement');
+        ackDone = true;
+      } catch {
+        ackDone = false;
       }
-      // Cap to data-collection step if all content done
-      const maxStep = allContents.length + 2;
-      setCurrentStep(Math.min(resumeStep, maxStep));
+
+      // Step 1 = Acknowledgement
+      // Steps 2 to N+1 = Modules
+      // Step N+2 = Completion
+      if (!ackDone) {
+        setCurrentStep(1);
+      } else {
+        let resumeStep = 2;
+        for (let i = 0; i < allContents.length; i++) {
+          if (doneIds.has(allContents[i].id)) {
+            resumeStep = i + 3;
+          } else {
+            break;
+          }
+        }
+        const maxStep = allContents.length + 2;
+        setCurrentStep(Math.min(resumeStep, maxStep));
+      }
     } catch (err) {
       console.error('Failed to load onboarding data:', err);
     } finally {
@@ -54,17 +68,19 @@ const OnboardingFlow = () => {
     setCurrentStep(prev => Math.min(prev + 1, totalSteps));
   };
 
-  // Build steps list
+  // Step 1 = Acknowledgement, Steps 2..N+1 = Modules, Step N+2 = Completion
   const dynamicSteps = [
-    ...contents.map((c, i) => ({ id: i + 1, label: c.title })),
-    { id: contents.length + 1, label: 'Data Collection' },
+    { id: 1, label: 'Acknowledgement' },
+    ...contents.map((c, i) => ({ id: i + 2, label: c.title })),
     { id: contents.length + 2, label: 'Completion' },
   ];
   const totalSteps = dynamicSteps.length;
 
   const renderStepContent = () => {
-    if (currentStep <= contents.length) {
-      const content = contents[currentStep - 1];
+    if (currentStep === 1) {
+      return <DataCollection onNext={handleNext} />;
+    } else if (currentStep <= contents.length + 1) {
+      const content = contents[currentStep - 2];
       return (
         <OnboardingModule
           key={content.id}
@@ -73,8 +89,6 @@ const OnboardingFlow = () => {
           onNext={handleNext}
         />
       );
-    } else if (currentStep === contents.length + 1) {
-      return <DataCollection onNext={handleNext} />;
     } else {
       return <CompletionScreen onDashboard={() => navigate('/dashboard')} />;
     }
@@ -102,7 +116,8 @@ const OnboardingFlow = () => {
             const isActive = step.id === currentStep;
             const isCompleted =
               step.id < currentStep ||
-              (step.id <= contents.length && completedIds.has(contents[step.id - 1]?.id));
+              (step.id >= 2 && step.id <= contents.length + 1 &&
+                completedIds.has(contents[step.id - 2]?.id));
 
             return (
               <div key={step.id} style={{ display: 'flex', alignItems: 'flex-start', gap: '1rem', marginBottom: '1.5rem' }}>
@@ -121,7 +136,7 @@ const OnboardingFlow = () => {
                     {step.label}
                   </p>
                   {isActive && <p style={{ fontSize: '0.75rem', color: 'var(--primary-color)', marginTop: '0.2rem' }}>In Progress…</p>}
-                  {isCompleted && step.id <= contents.length && <p style={{ fontSize: '0.75rem', color: 'var(--success)', marginTop: '0.2rem' }}>✓ Completed</p>}
+                  {isCompleted && <p style={{ fontSize: '0.75rem', color: 'var(--success)', marginTop: '0.2rem' }}>✔ Completed</p>}
                 </div>
               </div>
             );
@@ -148,14 +163,14 @@ const OnboardingFlow = () => {
 
       {/* ── Main Content ── */}
       <div className="main-content" style={{ display: 'flex', flexDirection: 'column' }}>
-
         {/* Horizontal stepper */}
         <div style={{ display: 'flex', alignItems: 'center', gap: '0', marginBottom: '2rem', overflowX: 'auto', paddingBottom: '0.5rem' }}>
           {dynamicSteps.map((step, index) => {
             const isActive = step.id === currentStep;
             const isCompleted =
               step.id < currentStep ||
-              (step.id <= contents.length && completedIds.has(contents[step.id - 1]?.id));
+              (step.id >= 2 && step.id <= contents.length + 1 &&
+                completedIds.has(contents[step.id - 2]?.id));
 
             return (
               <React.Fragment key={step.id}>
