@@ -1,8 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { 
-  LayoutDashboard, Users, CheckSquare, Settings, LogOut, 
-  BarChart3, UserPlus, Clock, AlertCircle, PieChart, FileText
+import {
+  LayoutDashboard, Users, CheckSquare, Settings, LogOut,
+  BarChart3, UserPlus, Clock, AlertCircle, PieChart, FileText, Eye
 } from 'lucide-react';
 import api from '../api';
 
@@ -50,6 +50,18 @@ const HRDashboard = () => {
   const handleLogout = () => {
     localStorage.removeItem('token');
     navigate('/login');
+  };
+
+  const handlePreview = async () => {
+    try {
+      const res = await api.get('/auth/preview-token');
+      localStorage.setItem('hr_token', localStorage.getItem('token'));
+      localStorage.setItem('token', res.data.preview_token);
+      localStorage.setItem('is_preview', 'true');
+      navigate('/onboarding');
+    } catch (err) {
+      alert('Failed to load preview: ' + (err.response?.data?.detail || err.message));
+    }
   };
 
   if (loading || !user) return (
@@ -155,6 +167,13 @@ const HRDashboard = () => {
             <h1 style={{ fontSize: '1.75rem', fontWeight: '700' }}>HR Dashboard</h1>
           </div>
           <p style={{ color: 'var(--text-muted)', fontSize: '0.9rem' }}>Live onboarding progress across all employees</p>
+          <button
+            className="btn"
+            style={{ width: 'auto', marginTop: '1rem', display: 'flex', alignItems: 'center', gap: '0.5rem', background: 'rgba(99,102,241,0.15)', border: '1px solid var(--primary-color)', color: 'var(--primary-color)' }}
+            onClick={handlePreview}
+          >
+            <Eye size={18} /> Preview Employee Portal
+          </button>
         </header>
 
         {/* Stats Grid */}

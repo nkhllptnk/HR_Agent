@@ -12,6 +12,17 @@ const OnboardingFlow = () => {
   const [currentStep, setCurrentStep] = useState(1);
   const [loading, setLoading] = useState(true);
   const navigate = useNavigate();
+  const isPreview = localStorage.getItem('is_preview') === 'true';
+
+  const handleBackToHR = () => {
+    const hrToken = localStorage.getItem('hr_token');
+    if (hrToken) {
+      localStorage.setItem('token', hrToken);
+      localStorage.removeItem('hr_token');
+      localStorage.removeItem('is_preview');
+    }
+    navigate('/hr-dashboard');
+  };
 
   useEffect(() => {
     loadData();
@@ -90,7 +101,13 @@ const OnboardingFlow = () => {
         />
       );
     } else {
-      return <CompletionScreen onDashboard={() => navigate('/dashboard')} />;
+      return <CompletionScreen onDashboard={() => {
+        if (isPreview) {
+          handleBackToHR();
+        } else {
+          navigate('/dashboard');
+        }
+      }} />;
     }
   };
 
@@ -106,7 +123,39 @@ const OnboardingFlow = () => {
   const completionPct = Math.round(((currentStep - 1) / totalSteps) * 100);
 
   return (
-    <div className="dashboard-layout">
+    <div className="dashboard-layout" style={{ flexDirection: 'column' }}>
+      {isPreview && (
+        <div style={{
+          background: 'rgba(99,102,241,0.15)',
+          border: '1px solid var(--primary-color)',
+          padding: '0.75rem 1.5rem',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          fontSize: '0.9rem',
+          color: 'var(--primary-color)',
+          width: '100%',
+          boxSizing: 'border-box'
+        }}>
+          <span>👁 You are previewing the Employee Portal as a demo user</span>
+          <button
+            onClick={handleBackToHR}
+            style={{
+              background: 'var(--primary-color)',
+              color: 'white',
+              border: 'none',
+              padding: '0.4rem 1rem',
+              borderRadius: '0.5rem',
+              cursor: 'pointer',
+              fontWeight: '600',
+              fontSize: '0.85rem'
+            }}
+          >
+            ← Back to HR Dashboard
+          </button>
+        </div>
+      )}
+      <div className="dashboard-layout" style={{ flex: 1 }}>
       {/* ── Sidebar ── */}
       <div className="sidebar" style={{ width: '300px' }}>
         <h2 style={{ fontSize: '1.25rem', marginBottom: '2rem' }}>Your Progress</h2>
@@ -201,6 +250,7 @@ const OnboardingFlow = () => {
       <style>{`
         @keyframes spin { to { transform: rotate(360deg); } }
       `}</style>
+    </div>
     </div>
   );
 };

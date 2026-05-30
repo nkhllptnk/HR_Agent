@@ -51,6 +51,16 @@ def seed():
             "role": RoleEnum.admin,
             "department": "IT",
             "doj": "2023-01-01"
+        },
+        {
+            "name": "Demo Employee",
+            "email": "demo@accops.com",
+            "personal_email": "demo.employee@gmail.com",
+            "password": "demo1234",
+            "role": RoleEnum.full_time,
+            "department": "Demo",
+            "doj": "2025-01-01",
+            "is_first_login": False
         }
     ]
 
@@ -63,7 +73,7 @@ def seed():
             role=user_data["role"],
             department=user_data["department"],
             doj=user_data["doj"],
-            is_first_login=(user_data["role"] == RoleEnum.full_time) # Only force reset for employees
+            is_first_login=user_data.get("is_first_login", user_data["role"] == RoleEnum.full_time) # Only force reset for employees
         )
         db.add(new_user)
         print(f"Added user: {user_data['email']} ({user_data['role']})")
