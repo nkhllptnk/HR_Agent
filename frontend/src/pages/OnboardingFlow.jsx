@@ -25,7 +25,7 @@ const OnboardingFlow = () => {
       ]);
 
       const allContents = contentRes.data;
-      const doneIds = new Set(progressRes.data.map(p => p.content_id));
+      const doneIds = new Set(progressRes.data.filter(p => p.completed).map(p => p.content_id));
 
       setContents(allContents);
       setCompletedIds(doneIds);

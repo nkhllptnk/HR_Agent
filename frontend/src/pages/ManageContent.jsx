@@ -234,7 +234,7 @@ const ManageContent = () => {
                 <label>File URL or Upload</label>
                 <div style={{ display: 'flex', gap: '0.5rem' }}>
                   <input type="text" className="form-control" value={newContent.file_url} onChange={e => setNewContent({...newContent, file_url: e.target.value})} placeholder="https://youtube.com/..." />
-                  <label className="btn" style={{ width: 'auto', cursor: 'pointer', display: 'flex', alignItems: 'center' }}>
+                  <label className="btn" style={{ width: 'auto', cursor: 'pointer', display: 'flex', alignItems: 'center' }} onClick={e => e.preventDefault()}>
                     <Upload size={18} />
                     <input type="file" style={{ display: 'none' }} onChange={handleFileUpload} />
                   </label>
