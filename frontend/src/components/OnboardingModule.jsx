@@ -227,51 +227,147 @@ const LocalVideoPlayer = ({ url, onComplete }) => {
 };
 
 // ─── MCQ Assessment ───────────────────────────────────────────────────────────
-const MCQAssessment = ({ contentId, contentTitle, mcqs, onFinish }) => {
+const MCQAssessment = ({ contentId, contentTitle, mcqs, onFinish, onRestartModule }) => {
   const [currentIdx, setCurrentIdx] = useState(0);
-  const [selected, setSelected] = useState(null);        // reset per question
-  const [submitted, setSubmitted] = useState(false);
-  const [isCorrect, setIsCorrect] = useState(false);
-  const [correctCount, setCorrectCount] = useState(0);
+  const [answers, setAnswers] = useState({});
+  const [showScore, setShowScore] = useState(false);
+  const [scoreData, setScoreData] = useState(null);
+  const [loading, setLoading] = useState(false);
 
-  // Reset all state when module changes
   useEffect(() => {
     setCurrentIdx(0);
-    setSelected(null);
-    setSubmitted(false);
-    setIsCorrect(false);
-    setCorrectCount(0);
+    setAnswers({});
+    setShowScore(false);
+    setScoreData(null);
   }, [contentId]);
 
   const q = mcqs[currentIdx];
   if (!q) return null;
 
-  const handleSubmit = () => {
-    const right = selected === q.correct_answer;
-    setIsCorrect(right);
-    setSubmitted(true);
-    if (right) setCorrectCount(prev => prev + 1);
+  const handleSelect = (key) => {
+    setAnswers(prev => ({ ...prev, [currentIdx]: key }));
   };
 
   const handleNext = () => {
     if (currentIdx < mcqs.length - 1) {
       setCurrentIdx(prev => prev + 1);
-      setSelected(null);
-      setSubmitted(false);
-      setIsCorrect(false);
-    } else {
-      // all done — compute final score including this question
-      onFinish(correctCount + (isCorrect ? 1 : 0), mcqs.length);
     }
   };
 
-  const handleRetry = () => {
-    setSelected(null);
-    setSubmitted(false);
+  const handleSubmitQuiz = async () => {
+    setLoading(true);
+    const correctCount = mcqs.reduce((acc, q, idx) => {
+      return acc + (answers[idx] === q.correct_answer ? 1 : 0);
+    }, 0);
+
+    try {
+      const res = await api.post('/content/complete-module', {
+        content_id: contentId,
+        score: correctCount,
+        total_questions: mcqs.length,
+      });
+      setScoreData({
+        score: correctCount,
+        total: mcqs.length,
+        passed: res.data.completed,
+        attemptCount: res.data.attempt_count,
+      });
+    } catch (err) {
+      if (err.response?.status === 403) {
+        setScoreData({
+          score: correctCount,
+          total: mcqs.length,
+          passed: false,
+          attemptCount: 2,
+          maxAttempts: true,
+        });
+      }
+    } finally {
+      setLoading(false);
+      setShowScore(true);
+    }
   };
 
   const OPTIONS = ['A', 'B', 'C', 'D'];
 
+  // ── Score Screen ──
+  if (showScore && scoreData) {
+    const passingScore = Math.ceil(scoreData.total * 0.5);
+    return (
+      <div className="card" style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: '1.5rem' }}>
+        <div style={{ textAlign: 'center' }}>
+          {scoreData.passed ? (
+            <CheckCircle size={64} color="#10b981" style={{ marginBottom: '1rem' }} />
+          ) : (
+            <AlertCircle size={64} color="#ef4444" style={{ marginBottom: '1rem' }} />
+          )}
+          <h2 style={{ fontSize: '1.75rem', fontWeight: '700', marginBottom: '0.5rem' }}>
+            {scoreData.passed ? 'Quiz Passed! 🎉' : 'Quiz Failed'}
+          </h2>
+          <p style={{ color: 'var(--text-muted)', marginBottom: '1.5rem' }}>
+            Assessment: {contentTitle}
+          </p>
+        </div>
+
+        {/* Score Card */}
+        <div style={{
+          background: 'rgba(255,255,255,0.04)',
+          border: '1px solid var(--border)',
+          borderRadius: '0.75rem',
+          padding: '1.5rem 3rem',
+          textAlign: 'center',
+          minWidth: '300px'
+        }}>
+          <div style={{ fontSize: '3rem', fontWeight: '800', color: scoreData.passed ? '#10b981' : '#ef4444' }}>
+            {scoreData.score}/{scoreData.total}
+          </div>
+          <p style={{ color: 'var(--text-muted)', fontSize: '0.85rem', marginTop: '0.25rem' }}>
+            Passing score: {passingScore}/{scoreData.total}
+          </p>
+          <p style={{ color: 'var(--text-muted)', fontSize: '0.85rem', marginTop: '0.5rem' }}>
+            Attempt: {scoreData.attemptCount} of 2
+          </p>
+        </div>
+
+        {/* Action Buttons */}
+        <div style={{ display: 'flex', gap: '1rem', flexWrap: 'wrap', justifyContent: 'center' }}>
+          {scoreData.passed ? (
+            <button className="btn" style={{ width: 'auto' }} onClick={() => onFinish(scoreData.score, scoreData.total)}>
+              Next Module →
+            </button>
+          ) : scoreData.maxAttempts ? (
+            <button className="btn" style={{ width: 'auto', background: '#ef4444', border: 'none' }} onClick={onRestartModule}>
+              Restart Module 🔄
+            </button>
+          ) : (
+            <>
+              <button
+                className="btn"
+                style={{ width: 'auto', background: 'transparent', border: '1px solid var(--border)' }}
+                onClick={onRestartModule}
+              >
+                Rewatch Module 📺
+              </button>
+              <button
+                className="btn"
+                style={{ width: 'auto' }}
+                onClick={() => {
+                  setAnswers({});
+                  setCurrentIdx(0);
+                  setShowScore(false);
+                  setScoreData(null);
+                }}
+              >
+                Retry Quiz →
+              </button>
+            </>
+          )}
+        </div>
+      </div>
+    );
+  }
+
+  // ── Question Screen ──
   return (
     <div className="card" style={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
       <div className="flex-between" style={{ marginBottom: '2rem' }}>
@@ -292,57 +388,40 @@ const MCQAssessment = ({ contentId, contentTitle, mcqs, onFinish }) => {
         {OPTIONS.map((key) => {
           const text = q[`option_${key.toLowerCase()}`];
           if (!text) return null;
-          const isSelected = selected === key;
-          const isWrong = submitted && isSelected && !isCorrect;
-          const isRight = submitted && key === q.correct_answer;
+          const isSelected = answers[currentIdx] === key;
 
           return (
             <label
               key={key}
               className={`radio-option ${isSelected ? 'selected' : ''}`}
-              style={{
-                pointerEvents: submitted ? 'none' : 'auto',
-                borderColor: isRight ? '#10b981' : isWrong ? '#ef4444' : undefined,
-                background: isRight ? 'rgba(16,185,129,0.08)' : isWrong ? 'rgba(239,68,68,0.08)' : undefined,
-              }}
+              onClick={() => handleSelect(key)}
+              style={{ cursor: 'pointer' }}
             >
-              <input type="radio" checked={isSelected} onChange={() => setSelected(key)} />
+              <input type="radio" checked={isSelected} onChange={() => handleSelect(key)} />
               <span style={{ fontWeight: 'bold', marginRight: '0.5rem' }}>{key}.</span> {text}
             </label>
           );
         })}
       </div>
 
-      {submitted && (
-        <div
-          className={`alert ${isCorrect ? 'alert-success' : 'alert-error'}`}
-          style={{ marginTop: '1.5rem', display: 'flex', alignItems: 'center', gap: '0.75rem' }}
-        >
-          {isCorrect ? <CheckCircle size={20} /> : <AlertCircle size={20} />}
-          <span>
-            {isCorrect
-              ? 'Correct! Well done.'
-              : `Incorrect. The correct answer is ${q.correct_answer}. Please try again.`}
-          </span>
-        </div>
-      )}
-
       <div style={{ marginTop: '2rem', display: 'flex', justifyContent: 'flex-end', gap: '1rem' }}>
-        {!submitted ? (
-          <button className="btn" style={{ width: 'auto' }} disabled={!selected} onClick={handleSubmit}>
-            Submit Answer
-          </button>
-        ) : isCorrect ? (
-          <button className="btn" style={{ width: 'auto' }} onClick={handleNext}>
-            {currentIdx === mcqs.length - 1 ? 'Finish Module ✓' : 'Next Question →'}
+        {currentIdx < mcqs.length - 1 ? (
+          <button
+            className="btn"
+            style={{ width: 'auto' }}
+            disabled={!answers[currentIdx]}
+            onClick={handleNext}
+          >
+            Next Question →
           </button>
         ) : (
           <button
             className="btn"
-            style={{ width: 'auto', background: 'transparent', border: '1px solid var(--border)' }}
-            onClick={handleRetry}
+            style={{ width: 'auto' }}
+            disabled={!answers[currentIdx] || loading}
+            onClick={handleSubmitQuiz}
           >
-            Retry Question
+            {loading ? 'Submitting...' : 'Submit Quiz ✓'}
           </button>
         )}
       </div>
@@ -407,6 +486,14 @@ const OnboardingModule = ({ content, alreadyCompleted, onNext }) => {
         contentTitle={content.title}
         mcqs={mcqs}
         onFinish={(score, total) => saveProgressAndNext(score, total)}
+        onRestartModule={async () => {
+          try {
+            await api.post(`/content/reset-attempts/${content.id}`);
+          } catch (err) {
+            console.error('Reset failed:', err);
+          }
+          setPhase('content');
+        }}
       />
     );
   }
