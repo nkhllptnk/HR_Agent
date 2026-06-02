@@ -18,6 +18,17 @@ os.makedirs(UPLOAD_DIR, exist_ok=True)
 @router.get("/", response_model=List[schemas.ContentResponse])
 def get_all_content(db: Session = Depends(get_db)):
     return db.query(models.Content).order_by(models.Content.order).all()
+@router.post("/", response_model=schemas.ContentResponse)
+def create_content(
+    data: schemas.ContentCreate,
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(auth.require_role([models.RoleEnum.hr, models.RoleEnum.admin]))
+):
+    new_content = models.Content(**data.dict())
+    db.add(new_content)
+    db.commit()
+    db.refresh(new_content)
+    return new_content
 
 @router.post("/complete-module", response_model=schemas.ModuleProgressResponse)
 def complete_module(
@@ -33,40 +44,35 @@ def complete_module(
     ).first()
 
     if existing:
-        # Already passed this module, no need to do anything
         if existing.completed:
             return existing
 
-        # Check attempt limit BEFORE counting this attempt
         if existing.attempt_count >= 2:
-            existing.attempt_count = 0
-            existing.completed = False
-            existing.score = 0
-            db.commit()
-            db.refresh(existing)
             raise HTTPException(
                 status_code=403,
                 detail="Maximum attempts reached. You have been reassigned to the module."
             )
 
-        # Count this attempt
         existing.attempt_count += 1
+        existing.score = data.score
+        existing.total_questions = data.total_questions
 
         if passed:
             existing.completed = True
-            existing.score = data.score
-            existing.total_questions = data.total_questions
             existing.completed_at = datetime.now().isoformat()
-        else:
-            existing.score = data.score
-            existing.total_questions = data.total_questions
 
         db.commit()
         db.refresh(existing)
+
+        if not passed and existing.attempt_count >= 2:
+            raise HTTPException(
+                status_code=403,
+                detail="Maximum attempts reached. You have been reassigned to the module."
+            )
+
         return existing
 
     else:
-        # First attempt ever
         new_progress = models.ModuleProgress(
             user_id=current_user.id,
             content_id=data.content_id,
@@ -78,7 +84,6 @@ def complete_module(
         )
         db.add(new_progress)
 
-        # Update overall onboarding progress only if passed
         if passed:
             onboarding = db.query(models.OnboardingProgress).filter(
                 models.OnboardingProgress.user_id == current_user.id
@@ -95,39 +100,14 @@ def complete_module(
 
         db.commit()
         db.refresh(new_progress)
+
+        if not passed and new_progress.attempt_count >= 2:
+            raise HTTPException(
+                status_code=403,
+                detail="Maximum attempts reached. You have been reassigned to the module."
+            )
+
         return new_progress
-
-@router.put("/{content_id}", response_model=schemas.ContentResponse)
-def update_content(
-    content_id: int,
-    data: schemas.ContentCreate,
-    db: Session = Depends(get_db),
-    current_user: models.User = Depends(auth.require_role([models.RoleEnum.hr, models.RoleEnum.admin]))
-):
-    content = db.query(models.Content).filter(models.Content.id == content_id).first()
-    if not content:
-        raise HTTPException(status_code=404, detail="Content not found")
-    
-    for key, value in data.dict().items():
-        setattr(content, key, value)
-    
-    db.commit()
-    db.refresh(content)
-    return content
-
-@router.delete("/{content_id}")
-def delete_content(
-    content_id: int,
-    db: Session = Depends(get_db),
-    current_user: models.User = Depends(auth.require_role([models.RoleEnum.hr, models.RoleEnum.admin]))
-):
-    content = db.query(models.Content).filter(models.Content.id == content_id).first()
-    if not content:
-        raise HTTPException(status_code=404, detail="Content not found")
-    
-    db.delete(content)
-    db.commit()
-    return {"message": "Content deleted"}
 
 # --- MCQ Endpoints ---
 
@@ -187,55 +167,6 @@ def get_my_progress(
         models.ModuleProgress.user_id == current_user.id
     ).all()
 
-@router.post("/complete-module", response_model=schemas.ModuleProgressResponse)
-def complete_module(
-    data: schemas.ModuleProgressCreate,
-    db: Session = Depends(get_db),
-    current_user: models.User = Depends(auth.get_current_user)
-):
-    """Mark a module as completed for the current user (upsert)."""
-    existing = db.query(models.ModuleProgress).filter(
-        models.ModuleProgress.user_id == current_user.id,
-        models.ModuleProgress.content_id == data.content_id
-    ).first()
-
-    if existing:
-        existing.completed = True
-        existing.score = data.score
-        existing.total_questions = data.total_questions
-        existing.completed_at = datetime.now().isoformat()
-        db.commit()
-        db.refresh(existing)
-        return existing
-    else:
-        new_progress = models.ModuleProgress(
-            user_id=current_user.id,
-            content_id=data.content_id,
-            completed=True,
-            score=data.score,
-            total_questions=data.total_questions,
-            completed_at=datetime.now().isoformat()
-        )
-        db.add(new_progress)
-
-        # Update overall onboarding progress
-        onboarding = db.query(models.OnboardingProgress).filter(
-            models.OnboardingProgress.user_id == current_user.id
-        ).first()
-        if onboarding:
-            all_content_count = db.query(models.Content).count()
-            completed_count = db.query(models.ModuleProgress).filter(
-                models.ModuleProgress.user_id == current_user.id,
-                models.ModuleProgress.completed == True
-            ).count() + 1  # +1 for the one we just added
-            if all_content_count > 0:
-                onboarding.completion_percentage = int((completed_count / all_content_count) * 100)
-            onboarding.last_activity_at = datetime.now().isoformat()
-        
-        db.commit()
-        db.refresh(new_progress)
-        return new_progress
-
 @router.get("/employee-progress/{user_id}", response_model=List[schemas.ModuleProgressResponse])
 def get_employee_progress(
     user_id: int,
@@ -246,3 +177,21 @@ def get_employee_progress(
     return db.query(models.ModuleProgress).filter(
         models.ModuleProgress.user_id == user_id
     ).all()
+
+@router.post("/reset-attempts/{content_id}")
+def reset_attempts(
+    content_id: int,
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(auth.get_current_user)
+):
+    """Reset attempt count when employee restarts the module."""
+    existing = db.query(models.ModuleProgress).filter(
+        models.ModuleProgress.user_id == current_user.id,
+        models.ModuleProgress.content_id == content_id
+    ).first()
+    if existing:
+        existing.attempt_count = 0
+        existing.completed = False
+        existing.score = 0
+        db.commit()
+    return {"message": "Attempts reset successfully."}
