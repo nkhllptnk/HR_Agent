@@ -90,24 +90,29 @@ def create_employee(
     db.commit()
     
     # Trigger Email Automation (Immediate check)
-    from ..worker import send_onboarding_email, daily_onboarding_check
-
-    # Check if DOJ is today or within 2 days, send immediately
-    today = datetime.now().date()
     try:
-        doj = datetime.strptime(new_user.doj, "%Y-%m-%d").date() if isinstance(new_user.doj, str) else new_user.doj
-    except:
-        doj = None
+        from ..worker import send_onboarding_email, daily_onboarding_check
 
-    if doj:
-        if doj == today:
-            # Day 0 - send immediately
-            send_onboarding_email.delay(new_user.id, "Day 0", {"password": temp_password})
-        elif doj == today + timedelta(days=2):
-            # T-2 - send immediately
-            send_onboarding_email.delay(new_user.id, "T-2")
+        # Check if DOJ is today or within 2 days, send immediately
+        today = datetime.now().date()
+        try:
+            doj = datetime.strptime(new_user.doj, "%Y-%m-%d").date() if isinstance(new_user.doj, str) else new_user.doj
+        except Exception:
+            doj = None
 
-    # Also queue the daily check for other tasks
-    daily_onboarding_check.delay()
-    
+        if doj:
+            if doj == today:
+                # Day 0 - send immediately
+                send_onboarding_email.delay(new_user.id, "Day 0", {"password": temp_password})
+            elif doj == today + timedelta(days=2):
+                # T-2 - send immediately
+                send_onboarding_email.delay(new_user.id, "T-2")
+
+        # Also queue the daily check for other tasks
+        daily_onboarding_check.delay()
+    except Exception as e:
+        # Celery/Redis not available — log and continue; employee was still created
+        import logging
+        logging.warning(f"Celery task could not be queued (Redis may not be running): {e}")
+
     return new_user

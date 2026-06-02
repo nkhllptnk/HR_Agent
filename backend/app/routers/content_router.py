@@ -30,6 +30,7 @@ def create_content(
     db.refresh(new_content)
     return new_content
 
+
 @router.post("/complete-module", response_model=schemas.ModuleProgressResponse)
 def complete_module(
     data: schemas.ModuleProgressCreate,

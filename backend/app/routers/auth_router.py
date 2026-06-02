@@ -124,3 +124,26 @@ def reset_password_by_token(
     record.used = True
     db.commit()
     return {"message": "Password reset successfully. You can now log in."}
+
+@router.get("/preview-token")
+def get_preview_token(
+    current_user: models.User = Depends(auth.require_role([models.RoleEnum.hr, models.RoleEnum.admin])),
+    db: Session = Depends(database.get_db)
+):
+    """HR gets a temporary token to preview the employee portal as demo user."""
+    demo_user = db.query(models.User).filter(
+        models.User.email == "demo@accops.com"
+    ).first()
+    if not demo_user:
+        raise HTTPException(status_code=404, detail="Demo employee not found. Please seed the database.")
+
+    access_token_expires = timedelta(minutes=60)
+    access_token = auth.create_access_token(
+        data={"sub": demo_user.email, "role": demo_user.role.value, "is_preview": True},
+        expires_delta=access_token_expires
+    )
+    return {
+        "preview_token": access_token,
+        "demo_email": demo_user.email,
+        "demo_name": demo_user.name
+    }
