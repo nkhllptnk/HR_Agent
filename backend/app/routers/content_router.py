@@ -30,6 +30,23 @@ def create_content(
     db.refresh(new_content)
     return new_content
 
+@router.put("/reorder")
+def reorder_modules(
+    order_data: list[dict],
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(auth.require_role([models.RoleEnum.hr, models.RoleEnum.admin]))
+):
+    """HR reorders non-intro modules. Expects list of {id, order}"""
+    for item in order_data:
+        content = db.query(models.Content).filter(
+            models.Content.id == item["id"],
+            models.Content.is_intro == False
+        ).first()
+        if content:
+            content.order = item["order"]
+    db.commit()
+    return {"message": "Order updated successfully."}
+
 @router.post("/complete-module", response_model=schemas.ModuleProgressResponse)
 def complete_module(
     data: schemas.ModuleProgressCreate,

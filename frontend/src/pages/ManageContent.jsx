@@ -1,24 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import {
-  Plus,
-  Video,
-  FileText,
-  Trash2,
-  Edit2,
-  Save,
-  X,
-  Upload,
-  ChevronRight,
-  ChevronDown,
-  ChevronUp,
-  CheckCircle,
-  BarChart3,
-  Users,
-  LayoutDashboard,
-  Settings,
-  LogOut,
-  CheckSquare,
-  Lock
+  Plus, Video, FileText, Trash2, Edit2, Save, X, Upload,
+  ChevronRight, ChevronDown, CheckCircle, BarChart3, Users, LayoutDashboard, Settings, LogOut, CheckSquare,
+  Lock, ArrowUp, ArrowDown
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import api from '../api';
@@ -37,45 +21,7 @@ const ManageContent = () => {
     question: '', option_a: '', option_b: '', option_c: '', option_d: '', correct_answer: 'A'
   });
   const navigate = useNavigate();
-  const moveUp = (index) => {
-  if (index <= 1) return; // keep Introduction fixed
-
-  const updated = [...contents];
-
-  [updated[index - 1], updated[index]] =
-    [updated[index], updated[index - 1]];
-
-  setContents(updated);
-};
-
-const moveDown = (index) => {
-  if (index >= contents.length - 1) return;
-
-  const updated = [...contents];
-
-  [updated[index], updated[index + 1]] =
-    [updated[index + 1], updated[index]];
-
-  setContents(updated);
-};
-
-const saveOrder = async () => {
-  try {
-    const moduleIds = contents
-      .filter(c => !c.is_intro)
-      .map(c => c.id);
-
-    await api.post('/content/reorder', {
-      content_ids: moduleIds
-    });
-
-    alert('Order saved successfully');
-    fetchContents();
-  } catch (err) {
-    console.error(err);
-    alert('Failed to save order');
-  }
-};
+  
 
   useEffect(() => {
     fetchContents();
@@ -147,6 +93,26 @@ const saveOrder = async () => {
       alert('Error: ' + err.message);
     }
   };
+  const handleReorder = async (contentId, direction) => {
+    const nonIntro = contents.filter(c => !c.is_intro);
+    const idx = nonIntro.findIndex(c => c.id === contentId);
+    if (idx === -1) return;
+    if (direction === 'up' && idx === 0) return;
+    if (direction === 'down' && idx === nonIntro.length - 1) return;
+
+    const swapIdx = direction === 'up' ? idx - 1 : idx + 1;
+    const updated = [...nonIntro];
+    [updated[idx], updated[swapIdx]] = [updated[swapIdx], updated[idx]];
+
+    const orderData = updated.map((c, i) => ({ id: c.id, order: i + 1 }));
+
+    try {
+      await api.put('/content/reorder', orderData);
+      fetchContents();
+    } catch (err) {
+      alert('Reorder failed: ' + err.message);
+    }
+  };
 
   const handleFileUpload = async (e) => {
     const file = e.target.files[0];
@@ -212,13 +178,6 @@ const saveOrder = async () => {
           <button className="btn" style={{ width: 'auto' }} onClick={() => { setEditingContent(null); setNewContent({ title: '', description: '', content_type: 'video', file_url: '', order: contents.length }); setShowAddModal(true); }}>
             <Plus size={20} style={{ marginRight: '0.5rem' }} /> Add Content
           </button>
-          <button
-          className="btn"
-          onClick={saveOrder}
-          style={{ width: 'auto' }}
-          >
-          Save Order
-          </button>
         </header>
 
         <div style={{ display: 'grid', gap: '1.5rem' }}>
@@ -231,37 +190,24 @@ const saveOrder = async () => {
                     {item.content_type === 'video' ? <Video size={24} color="#6366f1" /> : <FileText size={24} color="#10b981" />}
                   </div>
                   <div>
-                    <h3 style={{ fontSize: '1.1rem', fontWeight: '600' }}>{item.is_intro ? '🔒 Introduction' : item.title}</h3>
+                    <h3 style={{ fontSize: '1.1rem', fontWeight: '600' }}>{item.is_intro ? ' Introduction' : item.title}</h3>
                     <p style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>{item.description || 'No description'}</p>
                   </div>
                 </div>
-                {!item.is_intro && (
-                <div style={{ display: 'flex', gap: '0.5rem' }}>
-                <button
-                className="btn-icon"
-                onClick={() => moveUp(index)}
-                >
-                <ChevronUp size={16} />
-                </button>
-
-                <button
-                className="btn-icon"
-                onClick={() => moveDown(index)}
-                >
-                <ChevronDown size={16} />
-                </button>
-                </div>
-                )}
-                <div style={{ display: 'flex', gap: '0.75rem' }}>
+                <div style={{ display: 'flex', gap: '0.75rem', alignItems: 'center' }}>
+                  {item.is_intro ? (
+                    <span style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', fontSize: '0.75rem', color: '#f59e0b', background: 'rgba(245,158,11,0.1)', padding: '0.3rem 0.75rem', borderRadius: '1rem', border: '1px solid rgba(245,158,11,0.3)' }}>
+                      <Lock size={12} /> Locked — Always First
+                    </span>
+                  ) : (
+                    <>
+                      <button className="btn-icon" title="Move Up" onClick={() => handleReorder(item.id, 'up')}><ArrowUp size={16} /></button>
+                      <button className="btn-icon" title="Move Down" onClick={() => handleReorder(item.id, 'down')}><ArrowDown size={16} /></button>
+                    </>
+                  )}
                   <button className="btn-icon" onClick={() => { setEditingContent(item); setNewContent(item); setShowAddModal(true); }}><Edit2 size={18} /></button>
                   {!item.is_intro && (
-                  <button
-                  className="btn-icon"
-                  style={{ color: '#ef4444' }}
-                  onClick={() => handleDeleteContent(item.id)}
-                  >
-                  <Trash2 size={18} />
-                  </button>
+                    <button className="btn-icon" style={{ color: '#ef4444' }} onClick={() => handleDeleteContent(item.id)}><Trash2 size={18} /></button>
                   )}
                 </div>
               </div>
