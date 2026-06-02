@@ -19,6 +19,18 @@ os.makedirs(UPLOAD_DIR, exist_ok=True)
 def get_all_content(db: Session = Depends(get_db)):
     return db.query(models.Content).order_by(models.Content.order).all()
 
+@router.post("/", response_model=schemas.ContentResponse)
+def create_content(
+    data: schemas.ContentCreate,
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(auth.require_role([models.RoleEnum.hr, models.RoleEnum.admin]))
+):
+    new_content = models.Content(**data.dict())
+    db.add(new_content)
+    db.commit()
+    db.refresh(new_content)
+    return new_content
+
 @router.post("/complete-module", response_model=schemas.ModuleProgressResponse)
 def complete_module(
     data: schemas.ModuleProgressCreate,
