@@ -47,6 +47,7 @@ class ContentCreate(ContentBase):
 
 class ContentResponse(ContentBase):
     id: int
+    is_intro: bool = False
     class Config:
         from_attributes = True
 
