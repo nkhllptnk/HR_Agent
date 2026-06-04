@@ -1,6 +1,6 @@
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
-from typing import List
+from typing import List, Optional
 from datetime import datetime, timedelta
 import string
 import random
@@ -116,3 +116,82 @@ def create_employee(
         logging.warning(f"Celery task could not be queued (Redis may not be running): {e}")
 
     return new_user
+
+@router.post("/{user_id}/control")
+def control_employee_progress(
+    user_id: int,
+    action: str,  # "next", "prev", "reset_module", "reset_all"
+    content_id: Optional[int] = None,
+    db: Session = Depends(database.get_db),
+    current_user: models.User = Depends(auth.require_role([models.RoleEnum.hr, models.RoleEnum.admin]))
+):
+    """HR controls employee onboarding progress."""
+    from typing import Optional
+
+    if action == "reset_all":
+        db.query(models.ModuleProgress).filter(
+            models.ModuleProgress.user_id == user_id
+        ).delete()
+        db.query(models.EmployeeSubmission).filter(
+            models.EmployeeSubmission.user_id == user_id
+        ).delete()
+        onboarding = db.query(models.OnboardingProgress).filter(
+            models.OnboardingProgress.user_id == user_id
+        ).first()
+        if onboarding:
+            onboarding.current_step = 1
+            onboarding.completion_percentage = 0
+        db.commit()
+        return {"message": "Onboarding reset successfully."}
+
+    elif action == "reset_module":
+        if not content_id:
+            raise HTTPException(status_code=400, detail="content_id required for reset_module")
+        db.query(models.ModuleProgress).filter(
+            models.ModuleProgress.user_id == user_id,
+            models.ModuleProgress.content_id == content_id
+        ).delete()
+        db.commit()
+        return {"message": "Module reset successfully."}
+
+    elif action in ["next", "prev"]:
+        all_contents = db.query(models.Content).filter(
+            models.Content.is_enabled == True
+        ).order_by(models.Content.order).all()
+
+        completed = db.query(models.ModuleProgress).filter(
+            models.ModuleProgress.user_id == user_id,
+            models.ModuleProgress.completed == True
+        ).all()
+        completed_ids = {p.content_id for p in completed}
+
+        if action == "next":
+            for content in all_contents:
+                if content.id not in completed_ids:
+                    new_progress = models.ModuleProgress(
+                        user_id=user_id,
+                        content_id=content.id,
+                        completed=True,
+                        score=0,
+                        total_questions=0,
+                        attempt_count=0,
+                        completed_at=datetime.now().isoformat()
+                    )
+                    db.add(new_progress)
+                    db.commit()
+                    return {"message": f"Employee moved to next module."}
+            return {"message": "Employee has already completed all modules."}
+
+        elif action == "prev":
+            completed_contents = [c for c in all_contents if c.id in completed_ids]
+            if not completed_contents:
+                return {"message": "No completed modules to revert."}
+            last = completed_contents[-1]
+            db.query(models.ModuleProgress).filter(
+                models.ModuleProgress.user_id == user_id,
+                models.ModuleProgress.content_id == last.id
+            ).delete()
+            db.commit()
+            return {"message": f"Employee moved back to previous module."}
+
+    raise HTTPException(status_code=400, detail="Invalid action.")

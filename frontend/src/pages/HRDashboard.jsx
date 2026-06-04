@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
-  LayoutDashboard, Users, Settings, LogOut,
+  LayoutDashboard, Users, CheckSquare, Settings, LogOut,
   BarChart3, UserPlus, Clock, AlertCircle, PieChart, FileText, Eye
 } from 'lucide-react';
 import api from '../api';
@@ -206,6 +206,7 @@ const HRDashboard = () => {
                   <th>MODULES</th>
                   <th>PROGRESS</th>
                   <th>STATUS</th>
+                  <th>CONTROLS</th>
                 </tr>
               </thead>
               <tbody>
@@ -237,6 +238,52 @@ const HRDashboard = () => {
                         <span style={{ padding: '0.25rem 0.75rem', borderRadius: '1rem', fontSize: '0.75rem', fontWeight: '600', background: statusBg, color: statusColor, border: `1px solid ${statusColor}30` }}>
                           {statusLabel}
                         </span>
+                      </td>
+                      <td>
+                        <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
+                          <button
+                            onClick={async () => {
+                              if (!window.confirm(`Move ${emp.name} to next module?`)) return;
+                              try {
+                                await api.post(`/employees/${emp.id}/control?action=next`);
+                                fetchData();
+                              } catch (err) {
+                                alert('Failed: ' + (err.response?.data?.detail || err.message));
+                              }
+                            }}
+                            style={{ padding: '0.3rem 0.6rem', fontSize: '0.75rem', background: 'rgba(59,130,246,0.1)', color: '#3b82f6', border: '1px solid #3b82f6', borderRadius: '0.4rem', cursor: 'pointer' }}
+                          >
+                            Next →
+                          </button>
+                          <button
+                            onClick={async () => {
+                              if (!window.confirm(`Move ${emp.name} to previous module?`)) return;
+                              try {
+                                await api.post(`/employees/${emp.id}/control?action=prev`);
+                                fetchData();
+                              } catch (err) {
+                                alert('Failed: ' + (err.response?.data?.detail || err.message));
+                              }
+                            }}
+                            style={{ padding: '0.3rem 0.6rem', fontSize: '0.75rem', background: 'rgba(245,158,11,0.1)', color: '#f59e0b', border: '1px solid #f59e0b', borderRadius: '0.4rem', cursor: 'pointer' }}
+                          >
+                            ← Prev
+                          </button>
+                          <button
+                            onClick={async () => {
+                              if (!window.confirm(`Reset ALL onboarding for ${emp.name}? This cannot be undone.`)) return;
+                              try {
+                                await api.post(`/employees/${emp.id}/control?action=reset_all`);
+                                fetchData();
+                              } catch (err) {
+                                alert('Failed: ' + (err.response?.data?.detail || err.message));
+                              }
+                            }}
+                            style={{ padding: '0.3rem 0.6rem', fontSize: '0.75rem', background: 'rgba(239,68,68,0.1)', color: '#ef4444', border: '1px solid #ef4444', borderRadius: '0.4rem', cursor: 'pointer' }}
+                          >
+                            Reset All
+                          </button>
+                        </div>
                       </td>
                     </tr>
                   );
