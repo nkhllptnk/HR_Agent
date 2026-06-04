@@ -1,6 +1,7 @@
 from pydantic import BaseModel, EmailStr
 from typing import Optional
 from .models import RoleEnum
+from typing import List
 
 class UserBase(BaseModel):
     name: str
@@ -36,15 +37,17 @@ class PasswordResetConfirm(BaseModel):
 class ContentBase(BaseModel):
     title: str
     description: Optional[str] = None
-    content_type: str # video, pdf, ppt
-    file_url: str
+    content_type: str
+    file_url: Optional[str] = None
     order: int = 0
+    is_intro: bool = False
 
 class ContentCreate(ContentBase):
     pass
 
 class ContentResponse(ContentBase):
     id: int
+    is_intro: bool = False
     class Config:
         from_attributes = True
 
@@ -106,3 +109,6 @@ class SubmissionResponse(BaseModel):
     submitted_at: Optional[str] = None
     class Config:
         from_attributes = True
+
+class ReorderRequest(BaseModel):
+    content_ids: List[int]

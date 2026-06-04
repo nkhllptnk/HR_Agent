@@ -6,7 +6,7 @@ sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 
 try:
     from app.database import engine, SessionLocal, Base
-    from app.models import User, RoleEnum
+    from app.models import User, RoleEnum, Content, ContentType
     from app.auth import get_password_hash
 except ImportError as e:
     print(f"Error importing app modules: {e}")
@@ -77,7 +77,21 @@ def seed():
         )
         db.add(new_user)
         print(f"Added user: {user_data['email']} ({user_data['role']})")
-            
+    
+    # Create Introduction module if not exists
+    intro = db.query(Content).filter(Content.is_intro == True).first()
+    if not intro:
+        intro_module = Content(
+            title="Introduction",
+            description="Welcome to Accops! This module introduces you to our company, culture, and values.",
+            content_type=ContentType.video,
+            file_url=None,
+            order=0,
+            is_intro=True
+        )
+        db.add(intro_module)
+        print("Created Introduction module")
+        
     db.commit()
     db.close()
     print("Database seeding completed successfully!")

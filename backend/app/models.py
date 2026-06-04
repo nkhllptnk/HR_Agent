@@ -59,8 +59,9 @@ class Content(Base):
     title = Column(String)
     description = Column(String, nullable=True)
     content_type = Column(Enum(ContentType))
-    file_url = Column(String) # URL or local path
+    file_url = Column(String, nullable=True)
     order = Column(Integer, default=0)
+    is_intro = Column(Boolean, default=False)
 
 class MCQ(Base):
     __tablename__ = "mcqs"

@@ -30,6 +30,23 @@ def create_content(
     db.refresh(new_content)
     return new_content
 
+@router.put("/reorder")
+def reorder_modules(
+    order_data: list[dict],
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(auth.require_role([models.RoleEnum.hr, models.RoleEnum.admin]))
+):
+    """HR reorders non-intro modules. Expects list of {id, order}"""
+    for item in order_data:
+        content = db.query(models.Content).filter(
+            models.Content.id == item["id"],
+            models.Content.is_intro == False
+        ).first()
+        if content:
+            content.order = item["order"]
+    db.commit()
+    return {"message": "Order updated successfully."}
+
 
 @router.post("/complete-module", response_model=schemas.ModuleProgressResponse)
 def complete_module(
@@ -196,3 +213,87 @@ def reset_attempts(
         existing.score = 0
         db.commit()
     return {"message": "Attempts reset successfully."}
+
+# --- Content Update ---
+
+@router.put("/{content_id}", response_model=schemas.ContentResponse)
+def update_content(
+    content_id: int,
+    data: schemas.ContentCreate,
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(
+        auth.require_role([models.RoleEnum.hr, models.RoleEnum.admin])
+    )
+):
+    content = db.query(models.Content).filter(
+        models.Content.id == content_id
+    ).first()
+
+    if not content:
+        raise HTTPException(status_code=404, detail="Content not found")
+
+    content.title = data.title
+    content.description = data.description
+    content.content_type = data.content_type
+    content.file_url = data.file_url
+
+    db.commit()
+    db.refresh(content)
+
+    return content
+
+
+# --- Content Delete ---
+
+@router.delete("/{content_id}")
+def delete_content(
+    content_id: int,
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(
+        auth.require_role([models.RoleEnum.hr, models.RoleEnum.admin])
+    )
+):
+    content = db.query(models.Content).filter(
+        models.Content.id == content_id
+    ).first()
+
+    if not content:
+        raise HTTPException(status_code=404, detail="Content not found")
+
+    if content.is_intro:
+        raise HTTPException(
+            status_code=400,
+            detail="Introduction module cannot be deleted"
+        )
+
+    db.delete(content)
+    db.commit()
+
+    return {"message": "Content deleted successfully"}
+
+@router.post("/reorder")
+def reorder_content(
+    data: schemas.ReorderRequest,
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(
+        auth.require_role([models.RoleEnum.hr, models.RoleEnum.admin])
+    )
+):
+    intro = db.query(models.Content).filter(
+        models.Content.is_intro == True
+    ).first()
+
+    if intro:
+        intro.order = 0
+
+    for index, content_id in enumerate(data.content_ids, start=1):
+        content = db.query(models.Content).filter(
+            models.Content.id == content_id
+        ).first()
+
+        if content and not content.is_intro:
+            content.order = index
+
+    db.commit()
+
+    return {"message": "Order updated successfully"}

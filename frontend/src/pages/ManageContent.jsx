@@ -1,10 +1,12 @@
 import React, { useState, useEffect } from 'react';
-import { 
-  Plus, Video, FileText, Trash2, Edit2, Save, X, Upload, 
-  ChevronRight, ChevronDown, CheckCircle, BarChart3, Users, LayoutDashboard, Settings, LogOut, CheckSquare
+import {
+  Plus, Video, FileText, Trash2, Edit2, Save, X, Upload,
+  ChevronRight, ChevronDown, CheckCircle, BarChart3, Users, LayoutDashboard, Settings, LogOut, CheckSquare,
+  Lock, ArrowUp, ArrowDown
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import api from '../api';
+
 
 const ManageContent = () => {
   const [contents, setContents] = useState([]);
@@ -19,6 +21,7 @@ const ManageContent = () => {
     question: '', option_a: '', option_b: '', option_c: '', option_d: '', correct_answer: 'A'
   });
   const navigate = useNavigate();
+  
 
   useEffect(() => {
     fetchContents();
@@ -90,6 +93,26 @@ const ManageContent = () => {
       alert('Error: ' + err.message);
     }
   };
+  const handleReorder = async (contentId, direction) => {
+    const nonIntro = contents.filter(c => !c.is_intro);
+    const idx = nonIntro.findIndex(c => c.id === contentId);
+    if (idx === -1) return;
+    if (direction === 'up' && idx === 0) return;
+    if (direction === 'down' && idx === nonIntro.length - 1) return;
+
+    const swapIdx = direction === 'up' ? idx - 1 : idx + 1;
+    const updated = [...nonIntro];
+    [updated[idx], updated[swapIdx]] = [updated[swapIdx], updated[idx]];
+
+    const orderData = updated.map((c, i) => ({ id: c.id, order: i + 1 }));
+
+    try {
+      await api.put('/content/reorder', orderData);
+      fetchContents();
+    } catch (err) {
+      alert('Reorder failed: ' + err.message);
+    }
+  };
 
   const handleFileUpload = async (e) => {
     const file = e.target.files[0];
@@ -158,7 +181,8 @@ const ManageContent = () => {
         </header>
 
         <div style={{ display: 'grid', gap: '1.5rem' }}>
-          {contents.map((item) => (
+          {contents.map((item, index) => (
+
             <div key={item.id} className="card" style={{ padding: '0' }}>
               <div style={{ padding: '1.5rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid var(--border)' }}>
                 <div style={{ display: 'flex', gap: '1rem', alignItems: 'center' }}>
@@ -166,13 +190,25 @@ const ManageContent = () => {
                     {item.content_type === 'video' ? <Video size={24} color="#6366f1" /> : <FileText size={24} color="#10b981" />}
                   </div>
                   <div>
-                    <h3 style={{ fontSize: '1.1rem', fontWeight: '600' }}>{item.title}</h3>
+                    <h3 style={{ fontSize: '1.1rem', fontWeight: '600' }}>{item.is_intro ? ' Introduction' : item.title}</h3>
                     <p style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>{item.description || 'No description'}</p>
                   </div>
                 </div>
-                <div style={{ display: 'flex', gap: '0.75rem' }}>
+                <div style={{ display: 'flex', gap: '0.75rem', alignItems: 'center' }}>
+                  {item.is_intro ? (
+                    <span style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', fontSize: '0.75rem', color: '#f59e0b', background: 'rgba(245,158,11,0.1)', padding: '0.3rem 0.75rem', borderRadius: '1rem', border: '1px solid rgba(245,158,11,0.3)' }}>
+                      <Lock size={12} /> Locked — Always First
+                    </span>
+                  ) : (
+                    <>
+                      <button className="btn-icon" title="Move Up" onClick={() => handleReorder(item.id, 'up')}><ArrowUp size={16} /></button>
+                      <button className="btn-icon" title="Move Down" onClick={() => handleReorder(item.id, 'down')}><ArrowDown size={16} /></button>
+                    </>
+                  )}
                   <button className="btn-icon" onClick={() => { setEditingContent(item); setNewContent(item); setShowAddModal(true); }}><Edit2 size={18} /></button>
-                  <button className="btn-icon" style={{ color: '#ef4444' }} onClick={() => handleDeleteContent(item.id)}><Trash2 size={18} /></button>
+                  {!item.is_intro && (
+                    <button className="btn-icon" style={{ color: '#ef4444' }} onClick={() => handleDeleteContent(item.id)}><Trash2 size={18} /></button>
+                  )}
                 </div>
               </div>
               
@@ -340,3 +376,5 @@ const ManageContent = () => {
 };
 
 export default ManageContent;
+
+
