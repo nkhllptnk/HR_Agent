@@ -15,6 +15,13 @@ celery_app = Celery(
     backend=REDIS_URL
 )
 
+# Prevent Celery from blocking FastAPI startup if Redis is slow
+celery_app.conf.update(
+    broker_connection_retry_on_startup=False,
+    broker_transport_options={"socket_timeout": 5, "socket_connect_timeout": 5},
+    result_backend_transport_options={"socket_timeout": 5, "socket_connect_timeout": 5},
+)
+
 # Run every day at 9:00 AM IST (3:30 UTC)
 celery_app.conf.beat_schedule = {
     'daily-onboarding-check': {
