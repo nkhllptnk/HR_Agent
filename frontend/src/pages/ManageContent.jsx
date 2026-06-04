@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { 
   Plus, Video, FileText, Trash2, Edit2, Save, X, Upload, 
-  ChevronRight, ChevronDown, CheckCircle, BarChart3, Users, LayoutDashboard, Settings, LogOut, CheckSquare
+  ChevronRight, ChevronDown, CheckCircle, BarChart3, Users, LayoutDashboard, Settings, LogOut
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import api from '../api';
@@ -128,9 +128,6 @@ const ManageContent = () => {
           </button>
           <button className="nav-item">
             <Users size={20} /> Employees
-          </button>
-          <button className="nav-item">
-            <CheckSquare size={20} /> Approvals
           </button>
           <button className="nav-item active">
             <Settings size={20} /> Manage Content
