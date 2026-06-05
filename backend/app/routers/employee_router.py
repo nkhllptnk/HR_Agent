@@ -117,18 +117,15 @@ def create_employee(
 
     return new_user
 
-<<<<<<< Updated upstream
 @router.post("/{user_id}/control")
 def control_employee_progress(
     user_id: int,
-    action: str,  # "next", "prev", "reset_module", "reset_all"
+    action: str,
     content_id: Optional[int] = None,
     db: Session = Depends(database.get_db),
     current_user: models.User = Depends(auth.require_role([models.RoleEnum.hr, models.RoleEnum.admin]))
 ):
     """HR controls employee onboarding progress."""
-    from typing import Optional
-
     if action == "reset_all":
         db.query(models.ModuleProgress).filter(
             models.ModuleProgress.user_id == user_id
@@ -180,7 +177,7 @@ def control_employee_progress(
                     )
                     db.add(new_progress)
                     db.commit()
-                    return {"message": f"Employee moved to next module."}
+                    return {"message": "Employee moved to next module."}
             return {"message": "Employee has already completed all modules."}
 
         elif action == "prev":
@@ -193,10 +190,11 @@ def control_employee_progress(
                 models.ModuleProgress.content_id == last.id
             ).delete()
             db.commit()
-            return {"message": f"Employee moved back to previous module."}
+            return {"message": "Employee moved back to previous module."}
 
     raise HTTPException(status_code=400, detail="Invalid action.")
-=======
+
+
 @router.get("/{user_id}/report")
 def get_employee_report(
     user_id: int,
@@ -224,14 +222,10 @@ def get_employee_report(
     for content in contents:
         p = progress_map.get(content.id)
         if p and p.completed:
-            if p.attempt_count <= 1:
-                module_score_pct = 100
-            else:
-                module_score_pct = 75
+            module_score_pct = 100 if p.attempt_count <= 1 else 75
             total_score += module_score_pct
         else:
             module_score_pct = 0
-            total_score += 0
         max_score += 100
 
         modules_data.append({
@@ -346,4 +340,3 @@ def get_my_report(
             "rating": rating,
         }
     }
->>>>>>> Stashed changes
