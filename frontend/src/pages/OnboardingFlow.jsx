@@ -35,7 +35,7 @@ const OnboardingFlow = () => {
         api.get('/content/my-progress'),
       ]);
 
-      const allContents = contentRes.data;
+      const allContents = contentRes.data.filter(c => c.is_enabled !== false);
       const doneIds = new Set(progressRes.data.filter(p => p.completed).map(p => p.content_id));
 
       setContents(allContents);

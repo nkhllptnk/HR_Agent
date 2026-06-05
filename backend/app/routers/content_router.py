@@ -297,3 +297,20 @@ def reorder_content(
     db.commit()
 
     return {"message": "Order updated successfully"}
+
+@router.put("/{content_id}/toggle")
+def toggle_module(
+    content_id: int,
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(auth.require_role([models.RoleEnum.hr, models.RoleEnum.admin]))
+):
+    """HR enables or disables a module."""
+    content = db.query(models.Content).filter(models.Content.id == content_id).first()
+    if not content:
+        raise HTTPException(status_code=404, detail="Content not found")
+    if content.is_intro:
+        raise HTTPException(status_code=400, detail="Introduction module cannot be disabled.")
+    content.is_enabled = not content.is_enabled
+    db.commit()
+    db.refresh(content)
+    return {"id": content.id, "is_enabled": content.is_enabled}

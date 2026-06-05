@@ -187,7 +187,34 @@ const ManageContent = () => {
                     {item.content_type === 'video' ? <Video size={24} color="#6366f1" /> : <FileText size={24} color="#10b981" />}
                   </div>
                   <div>
-                    <h3 style={{ fontSize: '1.1rem', fontWeight: '600' }}>{item.is_intro ? ' Introduction' : item.title}</h3>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+  <h3 style={{ fontSize: '1.1rem', fontWeight: '600' }}>{item.is_intro ? '🔒 Introduction' : item.title}</h3>
+  {!item.is_intro && (
+    <button
+      onClick={async () => {
+        try {
+          await api.put(`/content/${item.id}/toggle`);
+          fetchContents();
+        } catch (err) {
+          alert('Toggle failed: ' + err.message);
+        }
+      }}
+      style={{
+        padding: '0.2rem 0.6rem',
+        borderRadius: '1rem',
+        fontSize: '0.72rem',
+        fontWeight: '600',
+        cursor: 'pointer',
+        border: 'none',
+        background: item.is_enabled ? 'rgba(34,197,94,0.15)' : 'rgba(239,68,68,0.15)',
+        color: item.is_enabled ? '#22c55e' : '#ef4444',
+        border: `1px solid ${item.is_enabled ? '#22c55e' : '#ef4444'}`,
+      }}
+    >
+      {item.is_enabled ? 'Enabled' : 'Disabled'}
+    </button>
+  )}
+</div>
                     <p style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>{item.description || 'No description'}</p>
                   </div>
                 </div>
@@ -260,7 +287,6 @@ const ManageContent = () => {
                 <select className="form-control" value={newContent.content_type} onChange={e => setNewContent({...newContent, content_type: e.target.value})}>
                   <option value="video">Video URL / Upload</option>
                   <option value="pdf">PDF Document</option>
-                  <option value="ppt">PPT Presentation</option>
                 </select>
               </div>
               <div className="form-group">

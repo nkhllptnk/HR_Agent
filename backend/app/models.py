@@ -62,7 +62,7 @@ class Content(Base):
     file_url = Column(String, nullable=True)
     order = Column(Integer, default=0)
     is_intro = Column(Boolean, default=False)
-
+    is_enabled = Column(Boolean, default=True)   
 class MCQ(Base):
     __tablename__ = "mcqs"
     id = Column(Integer, primary_key=True, index=True)
