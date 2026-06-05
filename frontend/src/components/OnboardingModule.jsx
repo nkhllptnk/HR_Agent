@@ -30,6 +30,9 @@ const YouTubeEnforcedPlayer = ({ url, onComplete }) => {
   const playerRef = useRef(null);
   const containerRef = useRef(null);
   const intervalRef = useRef(null);
+  const maxTimeRef = useRef(0);
+  const lastVideoTimeRef = useRef(0);
+  const lastRealTimeRef = useRef(Date.now());
   const [ready, setReady] = useState(false);
   const [completed, setCompleted] = useState(false);
   const [percentWatched, setPercentWatched] = useState(0);
@@ -66,17 +69,31 @@ const YouTubeEnforcedPlayer = ({ url, onComplete }) => {
         events: {
           onReady: () => setReady(true),
           onStateChange: (e) => {
-            if (e.data === window.YT.PlayerState.PLAYING) {
-              startTracking();
+            if (e.data === window.YT.PlayerState.PLAYING || e.data === window.YT.PlayerState.BUFFERING) {
+              lastRealTimeRef.current = Date.now();
+              if (playerRef.current?.getCurrentTime) {
+                lastVideoTimeRef.current = playerRef.current.getCurrentTime();
+              }
+              checkTime();
+              if (e.data === window.YT.PlayerState.PLAYING) {
+                startTracking();
+              }
             } else if (
               e.data === window.YT.PlayerState.PAUSED ||
               e.data === window.YT.PlayerState.ENDED
             ) {
               stopTracking();
               if (e.data === window.YT.PlayerState.ENDED) {
-                setCompleted(true);
-                setPercentWatched(100);
-                onComplete();
+                // Confirm they really finished
+                if (maxTimeRef.current >= playerRef.current.getDuration() * 0.95) {
+                  setCompleted(true);
+                  setPercentWatched(100);
+                  onComplete();
+                } else {
+                  // Force seek back if they seeked to the end
+                  playerRef.current.seekTo(maxTimeRef.current, true);
+                  playerRef.current.playVideo();
+                }
               }
             }
           },
@@ -91,22 +108,51 @@ const YouTubeEnforcedPlayer = ({ url, onComplete }) => {
     };
   }, [videoId]);
 
+  const checkTime = () => {
+    if (!playerRef.current?.getCurrentTime || !playerRef.current?.getDuration) return;
+    const current = playerRef.current.getCurrentTime();
+    const duration = playerRef.current.getDuration();
+    if (duration <= 0) return;
+
+    const now = Date.now();
+    const elapsedReal = (now - lastRealTimeRef.current) / 1000;
+    lastRealTimeRef.current = now;
+
+    const lastVideo = lastVideoTimeRef.current;
+    lastVideoTimeRef.current = current;
+
+    if (current > maxTimeRef.current) {
+      const jump = current - maxTimeRef.current;
+      const diff = current - lastVideo;
+      // If they skipped forward by more than 1.5 seconds, or if the time advanced
+      // faster than real-time (diff > elapsedReal * 1.5 + 0.5)
+      if (jump > 1.5 || diff > elapsedReal * 1.5 + 0.5) {
+        playerRef.current.seekTo(maxTimeRef.current, true);
+        lastVideoTimeRef.current = maxTimeRef.current;
+        return;
+      } else {
+        maxTimeRef.current = current;
+      }
+    }
+
+    const pct = Math.floor((maxTimeRef.current / duration) * 100);
+    setPercentWatched(pct);
+    if (pct >= 95 && !completed) {
+      setCompleted(true);
+      onComplete();
+      stopTracking();
+    }
+  };
+
   const startTracking = () => {
     if (intervalRef.current) return;
+    lastRealTimeRef.current = Date.now();
+    if (playerRef.current?.getCurrentTime) {
+      lastVideoTimeRef.current = playerRef.current.getCurrentTime();
+    }
     intervalRef.current = setInterval(() => {
-      if (!playerRef.current?.getDuration) return;
-      const duration = playerRef.current.getDuration();
-      const current = playerRef.current.getCurrentTime();
-      if (duration > 0) {
-        const pct = Math.floor((current / duration) * 100);
-        setPercentWatched(pct);
-        if (pct >= 95) {
-          setCompleted(true);
-          onComplete();
-          stopTracking();
-        }
-      }
-    }, 2000);
+      checkTime();
+    }, 200); // Check every 200ms for extremely fast response
   };
 
   const stopTracking = () => {
@@ -151,40 +197,49 @@ const YouTubeEnforcedPlayer = ({ url, onComplete }) => {
   );
 };
 
-// ─── PDF / PPT Viewer ────────────────────────────────────────────────────────
 const DocumentViewer = ({ url, onComplete }) => {
-  const [opened, setOpened] = useState(false);
   const fullUrl = isUploadedFile(url) ? `http://localhost:8001${url}` : url;
   const ext = getFileExtension(url);
 
-  const handleOpen = () => {
-    setOpened(true);
-    onComplete(); // count as viewed once opened
-    window.open(fullUrl, '_blank');
-  };
+  // Automatically mark content as viewed when loaded
+  useEffect(() => {
+    onComplete();
+  }, [url, onComplete]);
+
+  if (ext === 'pdf') {
+    return (
+      <div style={{ width: '100%', height: '550px', borderRadius: '0.5rem', overflow: 'hidden', border: '1px solid var(--border)' }}>
+        <iframe 
+          src={fullUrl} 
+          style={{ width: '100%', height: '100%', border: 'none' }} 
+          title="PDF Viewer" 
+        />
+      </div>
+    );
+  }
 
   return (
     <div style={{
       minHeight: '300px', borderRadius: '0.75rem', border: '2px dashed var(--border)',
       display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
-      gap: '1rem', background: 'rgba(16,185,129,0.03)', cursor: 'pointer',
-    }} onClick={!opened ? handleOpen : undefined}>
-      <FileText size={64} color={opened ? '#10b981' : '#6366f1'} />
+      gap: '1rem', background: 'rgba(16,185,129,0.03)',
+    }}>
+      <FileText size={64} color="#6366f1" />
       <div style={{ textAlign: 'center' }}>
         <p style={{ fontWeight: '600', marginBottom: '0.25rem' }}>
-          {opened ? '✅ Document Opened' : `Click to open ${ext.toUpperCase()}`}
+          Document ready
         </p>
         <p style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>{fullUrl}</p>
       </div>
-      {!opened && (
-        <button
-          className="btn"
-          style={{ width: 'auto', display: 'flex', alignItems: 'center', gap: '0.5rem' }}
-          onClick={handleOpen}
-        >
-          <ExternalLink size={16} /> Open {ext.toUpperCase()}
-        </button>
-      )}
+      <a
+        href={fullUrl}
+        target="_blank"
+        rel="noopener noreferrer"
+        className="btn"
+        style={{ width: 'auto', display: 'flex', alignItems: 'center', gap: '0.5rem', textDecoration: 'none' }}
+      >
+        <ExternalLink size={16} /> Open / Download {ext.toUpperCase()}
+      </a>
     </div>
   );
 };
@@ -193,6 +248,7 @@ const DocumentViewer = ({ url, onComplete }) => {
 const LocalVideoPlayer = ({ url, onComplete }) => {
   const fullUrl = isUploadedFile(url) ? `http://localhost:8001${url}` : url;
   const [completed, setCompleted] = useState(false);
+  const maxTimeRef = useRef(0);
 
   const handleEnded = () => {
     setCompleted(true);
@@ -206,11 +262,27 @@ const LocalVideoPlayer = ({ url, onComplete }) => {
         controlsList="nodownload"
         onContextMenu={e => e.preventDefault()}
         onEnded={handleEnded}
+        onSeeking={(e) => {
+          const v = e.currentTarget;
+          if (v.currentTime > maxTimeRef.current + 0.01) {
+            v.currentTime = maxTimeRef.current;
+          }
+        }}
         onTimeUpdate={(e) => {
           const v = e.currentTarget;
-          if (v.duration > 0 && v.currentTime / v.duration >= 0.95 && !completed) {
-            setCompleted(true);
-            onComplete();
+          if (v.duration > 0) {
+            if (v.currentTime > maxTimeRef.current + 1.0) {
+              v.currentTime = maxTimeRef.current;
+            } else {
+              if (v.currentTime > maxTimeRef.current) {
+                maxTimeRef.current = v.currentTime;
+              }
+            }
+
+            if (maxTimeRef.current / v.duration >= 0.95 && !completed) {
+              setCompleted(true);
+              onComplete();
+            }
           }
         }}
         style={{ width: '100%', borderRadius: '0.5rem', maxHeight: '420px' }}
@@ -225,6 +297,7 @@ const LocalVideoPlayer = ({ url, onComplete }) => {
     </div>
   );
 };
+
 
 // ─── MCQ Assessment ───────────────────────────────────────────────────────────
 const MCQAssessment = ({ contentId, contentTitle, mcqs, onFinish, onRestartModule }) => {
@@ -431,17 +504,17 @@ const MCQAssessment = ({ contentId, contentTitle, mcqs, onFinish, onRestartModul
 
 // ─── Main Module Component ────────────────────────────────────────────────────
 const OnboardingModule = ({ content, alreadyCompleted, onNext }) => {
-  const [contentViewed, setContentViewed] = useState(false);
+  const [contentViewed, setContentViewed] = useState(content.content_type !== 'video' || alreadyCompleted);
   const [phase, setPhase] = useState('content'); // 'content' | 'assessment'
   const [mcqs, setMcqs] = useState([]);
 
   // reset fully whenever the content changes
   useEffect(() => {
-    setContentViewed(false);
+    setContentViewed(content.content_type !== 'video' || alreadyCompleted);
     setPhase('content');
     setMcqs([]);
     fetchMcqs();
-  }, [content.id]);
+  }, [content.id, content.content_type, alreadyCompleted]);
 
   const fetchMcqs = async () => {
     try {
