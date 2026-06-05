@@ -1,7 +1,7 @@
 import os
 import sys
 
-# Add app to path so we can import from app
+
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 
 try:
@@ -73,12 +73,12 @@ def seed():
             role=user_data["role"],
             department=user_data["department"],
             doj=user_data["doj"],
-            is_first_login=user_data.get("is_first_login", user_data["role"] == RoleEnum.full_time) # Only force reset for employees
+            is_first_login=user_data.get("is_first_login", user_data["role"] == RoleEnum.full_time)
         )
         db.add(new_user)
         print(f"Added user: {user_data['email']} ({user_data['role']})")
     
-    # Create Introduction module if not exists
+   
     intro = db.query(Content).filter(Content.is_intro == True).first()
     if not intro:
         intro_module = Content(
@@ -90,7 +90,7 @@ def seed():
             is_intro=True
         )
         db.add(intro_module)
-        print("Created Introduction module")
+        print("Created Introduction module") 
         
     db.commit()
     db.close()

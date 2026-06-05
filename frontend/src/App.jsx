@@ -7,6 +7,7 @@ import Dashboard from './pages/Dashboard';
 import OnboardingFlow from './pages/OnboardingFlow';
 import HRDashboard from './pages/HRDashboard';
 import ManageContent from './pages/ManageContent';
+import EmployeesPage from './pages/EmployeesPage';
 
 function App() {
   return (
@@ -19,6 +20,7 @@ function App() {
         <Route path="/dashboard" element={<Dashboard />} />
         <Route path="/hr-dashboard" element={<HRDashboard />} />
         <Route path="/manage-content" element={<ManageContent />} />
+        <Route path="/employees" element={<EmployeesPage />} />
         <Route path="/onboarding" element={<OnboardingFlow />} />
       </Routes>
     </BrowserRouter>

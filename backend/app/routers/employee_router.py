@@ -117,6 +117,7 @@ def create_employee(
 
     return new_user
 
+<<<<<<< Updated upstream
 @router.post("/{user_id}/control")
 def control_employee_progress(
     user_id: int,
@@ -195,3 +196,154 @@ def control_employee_progress(
             return {"message": f"Employee moved back to previous module."}
 
     raise HTTPException(status_code=400, detail="Invalid action.")
+=======
+@router.get("/{user_id}/report")
+def get_employee_report(
+    user_id: int,
+    db: Session = Depends(database.get_db),
+    current_user: models.User = Depends(auth.require_role([models.RoleEnum.admin, models.RoleEnum.hr]))
+):
+    """HR gets detailed report for a specific employee."""
+    employee = db.query(models.User).filter(models.User.id == user_id).first()
+    if not employee:
+        raise HTTPException(status_code=404, detail="Employee not found")
+
+    contents = db.query(models.Content).filter(
+        models.Content.is_enabled == True
+    ).order_by(models.Content.order).all()
+
+    progress_records = db.query(models.ModuleProgress).filter(
+        models.ModuleProgress.user_id == user_id
+    ).all()
+    progress_map = {p.content_id: p for p in progress_records}
+
+    total_score = 0
+    max_score = 0
+    modules_data = []
+
+    for content in contents:
+        p = progress_map.get(content.id)
+        if p and p.completed:
+            if p.attempt_count <= 1:
+                module_score_pct = 100
+            else:
+                module_score_pct = 75
+            total_score += module_score_pct
+        else:
+            module_score_pct = 0
+            total_score += 0
+        max_score += 100
+
+        modules_data.append({
+            "module_id": content.id,
+            "module_title": content.title,
+            "is_intro": content.is_intro,
+            "completed": p.completed if p else False,
+            "score": p.score if p else 0,
+            "total_questions": p.total_questions if p else 0,
+            "attempt_count": p.attempt_count if p else 0,
+            "module_score_pct": module_score_pct,
+            "completed_at": p.completed_at if p else None,
+            "time_spent_seconds": p.time_spent_seconds if p else 0,
+        })
+
+    overall_pct = round((total_score / max_score) * 100) if max_score > 0 else 0
+
+    if overall_pct >= 90:
+        rating = "Excellent"
+    elif overall_pct >= 75:
+        rating = "Good"
+    elif overall_pct >= 50:
+        rating = "Needs Improvement"
+    else:
+        rating = "Incomplete"
+
+    acknowledgement = db.query(models.EmployeeSubmission).filter(
+        models.EmployeeSubmission.user_id == user_id
+    ).first()
+
+    return {
+        "employee": {
+            "id": employee.id,
+            "name": employee.name,
+            "email": employee.email,
+            "department": employee.department,
+            "doj": employee.doj,
+            "role": employee.role.value,
+        },
+        "modules": modules_data,
+        "summary": {
+            "total_modules": len(contents),
+            "completed_modules": sum(1 for m in modules_data if m["completed"]),
+            "overall_score_pct": overall_pct,
+            "rating": rating,
+            "acknowledged_at": acknowledgement.submitted_at if acknowledgement else None,
+            "completion_date": max(
+                (m["completed_at"] for m in modules_data if m["completed_at"]),
+                default=None
+            ),
+        }
+    }
+
+
+@router.get("/my-report")
+def get_my_report(
+    db: Session = Depends(database.get_db),
+    current_user: models.User = Depends(auth.get_current_user)
+):
+    """Employee gets their own completion report."""
+    contents = db.query(models.Content).filter(
+        models.Content.is_enabled == True
+    ).order_by(models.Content.order).all()
+
+    progress_records = db.query(models.ModuleProgress).filter(
+        models.ModuleProgress.user_id == current_user.id
+    ).all()
+    progress_map = {p.content_id: p for p in progress_records}
+
+    total_score = 0
+    max_score = 0
+    modules_data = []
+
+    for content in contents:
+        p = progress_map.get(content.id)
+        if p and p.completed:
+            module_score_pct = 100 if p.attempt_count <= 1 else 75
+            total_score += module_score_pct
+        else:
+            module_score_pct = 0
+        max_score += 100
+
+        modules_data.append({
+            "module_title": content.title,
+            "is_intro": content.is_intro,
+            "completed": p.completed if p else False,
+            "score": p.score if p else 0,
+            "total_questions": p.total_questions if p else 0,
+            "attempt_count": p.attempt_count if p else 0,
+            "module_score_pct": module_score_pct,
+            "completed_at": p.completed_at if p else None,
+            "time_spent_seconds": p.time_spent_seconds if p else 0,
+        })
+
+    overall_pct = round((total_score / max_score) * 100) if max_score > 0 else 0
+
+    if overall_pct >= 90:
+        rating = "Excellent"
+    elif overall_pct >= 75:
+        rating = "Good"
+    elif overall_pct >= 50:
+        rating = "Needs Improvement"
+    else:
+        rating = "Incomplete"
+
+    return {
+        "modules": modules_data,
+        "summary": {
+            "total_modules": len(contents),
+            "completed_modules": sum(1 for m in modules_data if m["completed"]),
+            "overall_score_pct": overall_pct,
+            "rating": rating,
+        }
+    }
+>>>>>>> Stashed changes

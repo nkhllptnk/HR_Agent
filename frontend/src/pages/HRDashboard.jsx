@@ -149,7 +149,7 @@ const HRDashboard = () => {
 
         <nav style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
           <button className="nav-item active"><LayoutDashboard size={20} /> HR Dashboard</button>
-          <button className="nav-item"><Users size={20} /> Employees</button>
+          <button className="nav-item" onClick={() => navigate('/employees')}><Users size={20} /> Employees</button>
           <button className="nav-item" onClick={() => navigate('/manage-content')}><Settings size={20} /> Manage Content</button>
         </nav>
 

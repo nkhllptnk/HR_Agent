@@ -113,3 +113,22 @@ class SubmissionResponse(BaseModel):
 
 class ReorderRequest(BaseModel):
     content_ids: List[int]
+
+class ModuleReportItem(BaseModel):
+    module_title: str
+    is_intro: bool
+    completed: bool
+    score: int
+    total_questions: int
+    attempt_count: int
+    module_score_pct: int
+    completed_at: Optional[str] = None
+    time_spent_seconds: int = 0
+
+class ReportSummary(BaseModel):
+    total_modules: int
+    completed_modules: int
+    overall_score_pct: int
+    rating: str
+    acknowledged_at: Optional[str] = None
+    completion_date: Optional[str] = None

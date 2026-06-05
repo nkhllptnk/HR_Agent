@@ -63,6 +63,7 @@ class Content(Base):
     order = Column(Integer, default=0)
     is_intro = Column(Boolean, default=False)
     is_enabled = Column(Boolean, default=True)   
+
 class MCQ(Base):
     __tablename__ = "mcqs"
     id = Column(Integer, primary_key=True, index=True)
@@ -84,6 +85,8 @@ class ModuleProgress(Base):
     total_questions = Column(Integer, default=0)
     completed_at = Column(String, nullable=True)
     attempt_count = Column(Integer, default=0)   #count log
+    started_at = Column(String, nullable=True)      
+    time_spent_seconds = Column(Integer, default=0) 
 
 class PasswordResetToken(Base):
     __tablename__ = "password_reset_tokens"
