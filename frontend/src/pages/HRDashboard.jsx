@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   LayoutDashboard, Users, Settings, LogOut,
-  BarChart3, UserPlus, Clock, AlertCircle, PieChart, FileText, Eye
+  BarChart3, UserPlus, Clock, AlertCircle, PieChart, FileText, Eye, CheckSquare
 } from 'lucide-react';
 import api from '../api';
 
