@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   LayoutDashboard, Users, Settings, LogOut,
-  ChevronDown, ChevronUp, CheckCircle, XCircle, Clock
+  ChevronDown, ChevronUp, CheckCircle, XCircle, Clock, Activity
 } from 'lucide-react';
 import api from '../api';
 
@@ -82,6 +82,9 @@ const EmployeesPage = () => {
           <button className="nav-item" onClick={() => navigate('/manage-content')}>
             <Settings size={20} /> Manage Content
           </button>
+          <button className="nav-item" onClick={() => navigate('/activity-logs')}>
+  <Activity size={20} /> Activity Logs
+</button>
         </nav>
 
         <button onClick={() => { localStorage.removeItem('token'); navigate('/login'); }}

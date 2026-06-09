@@ -1,5 +1,6 @@
 from fastapi import APIRouter, Depends, HTTPException, status, UploadFile, File
 from sqlalchemy.orm import Session
+from .logs_router import log_action
 from typing import List
 import os
 import shutil
@@ -80,6 +81,8 @@ def complete_module(
             existing.completed_at = datetime.now().isoformat()
 
         db.commit()
+        if passed:
+            log_action(db, current_user.id, "MODULE_COMPLETED", f"Completed module ID: {data.content_id} with score {data.score}/{data.total_questions}")
         db.refresh(existing)
 
         if not passed and existing.attempt_count >= 2:

@@ -111,3 +111,11 @@ class EmployeeSubmission(Base):
     status = Column(Enum(SubmissionStatus), default=SubmissionStatus.pending)
     hr_remark = Column(String, nullable=True)
     submitted_at = Column(String, nullable=True)
+
+class ActivityLog(Base):
+    __tablename__ = "activity_logs"
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, index=True)
+    action = Column(String)
+    details = Column(String, nullable=True)
+    timestamp = Column(String, nullable=True)

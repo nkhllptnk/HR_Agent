@@ -1,6 +1,7 @@
 from fastapi import APIRouter, Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordRequestForm
 from sqlalchemy.orm import Session
+from .logs_router import log_action
 from datetime import timedelta, datetime
 import secrets
 
@@ -8,6 +9,7 @@ from .. import schemas, models, auth, database
 from ..utils.email_utils import EmailService
 
 router = APIRouter(prefix="/api/auth", tags=["auth"])
+
 
 @router.post("/login", response_model=schemas.Token)
 def login(form_data: OAuth2PasswordRequestForm = Depends(), db: Session = Depends(database.get_db)):
@@ -23,7 +25,9 @@ def login(form_data: OAuth2PasswordRequestForm = Depends(), db: Session = Depend
     access_token = auth.create_access_token(
         data={"sub": user.email, "role": user.role.value}, expires_delta=access_token_expires
     )
+    log_action(db, user.id, "LOGIN", f"User logged in from role: {user.role.value}")
     return {"access_token": access_token, "token_type": "bearer"}
+
 
 @router.get("/me", response_model=schemas.UserResponse)
 def get_me(current_user: models.User = Depends(auth.get_current_user)):

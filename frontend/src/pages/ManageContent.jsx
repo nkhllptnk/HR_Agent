@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { 
   Plus, Video, FileText, Trash2, Edit2, Save, X, Upload, 
   ChevronRight, ChevronDown, CheckCircle, BarChart3, Users, LayoutDashboard, Settings, LogOut,
-  Lock, ArrowUp, ArrowDown
+  Lock, ArrowUp, ArrowDown, Activity
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import api from '../api';
@@ -155,6 +155,9 @@ const ManageContent = () => {
           <button className="nav-item active">
             <Settings size={20} /> Manage Content
           </button>
+          <button className="nav-item" onClick={() => navigate('/activity-logs')}>
+  <Activity size={20} /> Activity Logs
+</button>
         </nav>
 
         <button onClick={() => { localStorage.removeItem('token'); navigate('/login'); }} className="nav-item" style={{ marginTop: 'auto', color: '#ef4444' }}>

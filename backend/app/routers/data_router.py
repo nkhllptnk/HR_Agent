@@ -1,6 +1,7 @@
 from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, Form
 from sqlalchemy.orm import Session
 from datetime import datetime
+from .logs_router import log_action
 import os
 import shutil
 
@@ -36,6 +37,7 @@ def acknowledge_policies(
     )
     db.add(acknowledgement)
     db.commit()
+    log_action(db, current_user.id, "ACKNOWLEDGED", "Employee acknowledged Keka document upload")
     return {"message": "Acknowledgement recorded successfully."}
 
 

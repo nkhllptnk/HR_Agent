@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   LayoutDashboard, Users, CheckSquare, Settings, LogOut,
-  BarChart3, UserPlus, Clock, AlertCircle, PieChart, FileText, Eye
+  BarChart3, UserPlus, Clock, AlertCircle, PieChart, FileText, Eye, Activity
 } from 'lucide-react';
 import api from '../api';
 
@@ -151,6 +151,9 @@ const HRDashboard = () => {
           <button className="nav-item active"><LayoutDashboard size={20} /> HR Dashboard</button>
           <button className="nav-item" onClick={() => navigate('/employees')}><Users size={20} /> Employees</button>
           <button className="nav-item" onClick={() => navigate('/manage-content')}><Settings size={20} /> Manage Content</button>
+          <button className="nav-item" onClick={() => navigate('/activity-logs')}>
+  <Activity size={20} /> Activity Logs
+</button>
         </nav>
 
         <button onClick={handleLogout} className="nav-item" style={{ marginTop: 'auto', color: '#ef4444' }}>
