@@ -1,9 +1,8 @@
-from fastapi import FastAPI
+from fastapi import FastAPI  
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.staticfiles import StaticFiles
+from starlette.staticfiles import StaticFiles 
 from . import models, database
-from .routers import auth_router, employee_router, content_router, data_router, logs_router
-
+from .routers import auth_router, employee_router, content_router, data_router, logs_router, chat_router
 models.Base.metadata.create_all(bind=database.engine)
 
 app = FastAPI(title="HR Onboarding Portal", version="1.0.0")
@@ -24,6 +23,7 @@ app.include_router(employee_router.router)
 app.include_router(content_router.router)
 app.include_router(data_router.router)
 app.include_router(logs_router.router)
+app.include_router(chat_router.router)
 
 @app.get("/")
 def root():

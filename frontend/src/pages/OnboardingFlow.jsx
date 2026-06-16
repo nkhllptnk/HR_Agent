@@ -5,6 +5,7 @@ import OnboardingModule from '../components/OnboardingModule';
 import DataCollection from '../components/DataCollection';
 import CompletionScreen from '../components/CompletionScreen';
 import api from '../api';
+import Chatbot from '../components/Chatbot';
 
 const OnboardingFlow = () => {
   const [contents, setContents] = useState([]);
@@ -251,6 +252,7 @@ const OnboardingFlow = () => {
         @keyframes spin { to { transform: rotate(360deg); } }
       `}</style>
     </div>
+    <Chatbot />
     </div>
   );
 };
