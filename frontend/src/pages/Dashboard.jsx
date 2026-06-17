@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { CheckCircle, Clock, ArrowRight, BookOpen, LogOut } from 'lucide-react';
+import Chatbot from '../components/Chatbot';
 import api from '../api';
 
 const Dashboard = () => {
@@ -132,6 +133,7 @@ const Dashboard = () => {
           </div>
         </div>
       </div>
+      <Chatbot />
     </div>
   );
 };
