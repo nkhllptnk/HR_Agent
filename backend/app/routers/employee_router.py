@@ -27,12 +27,18 @@ def get_employees_with_progress(
 ):
     """Returns employees with their live module completion stats."""
     employees = db.query(models.User).filter(models.User.role != models.RoleEnum.admin).all()
-    total_content = db.query(models.Content).count()
     result = []
     for emp in employees:
+        applicable_contents = db.query(models.Content).filter(
+            models.Content.is_enabled == True
+        ).all()
+        total_content = len(applicable_contents)
+        applicable_ids = {c.id for c in applicable_contents}
+
         completed = db.query(models.ModuleProgress).filter(
             models.ModuleProgress.user_id == emp.id,
-            models.ModuleProgress.completed == True
+            models.ModuleProgress.completed == True,
+            models.ModuleProgress.content_id.in_(applicable_ids)
         ).count()
         pct = int((completed / total_content) * 100) if total_content > 0 else 0
         result.append({

@@ -15,12 +15,14 @@ const ManageContent = () => {
   const [newContent, setNewContent] = useState({
     title: '', description: '', content_type: 'video', file_url: '', order: 0
   });
+  const [editingMcq, setEditingMcq] = useState(null); // { contentId, mcq }
   const [mcqs, setMcqs] = useState({}); // content_id -> list of mcqs
   const [showMcqModal, setShowMcqModal] = useState(null); // content_id
   const [newMcq, setNewMcq] = useState({
     question: '', option_a: '', option_b: '', option_c: '', option_d: '', correct_answer: 'A'
   });
   const navigate = useNavigate();
+
   
 
   useEffect(() => {
@@ -75,15 +77,20 @@ const ManageContent = () => {
   };
 
   const handleAddMcq = async (e) => {
-    e.preventDefault();
-    try {
+  e.preventDefault();
+  try {
+    if (editingMcq) {
+      await api.put(`/content/mcqs/${editingMcq.mcq.id}`, { ...newMcq, content_id: showMcqModal });
+    } else {
       await api.post('/content/mcqs', { ...newMcq, content_id: showMcqModal });
-      setNewMcq({ question: '', option_a: '', option_b: '', option_c: '', option_d: '', correct_answer: 'A' });
-      fetchMcqs(showMcqModal);
-    } catch (err) {
-      alert('Error: ' + err.message);
     }
-  };
+    setNewMcq({ question: '', option_a: '', option_b: '', option_c: '', option_d: '', correct_answer: 'A' });
+    setEditingMcq(null);
+    fetchMcqs(showMcqModal);
+  } catch (err) {
+    alert('Error: ' + err.message);
+  }
+};
 
   const handleDeleteMcq = async (contentId, mcqId) => {
     try {
@@ -244,9 +251,9 @@ const ManageContent = () => {
                   <h4 style={{ fontSize: '0.9rem', fontWeight: '600', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
                     <CheckCircle size={16} color="var(--primary-color)" /> Assessment Questions ({mcqs[item.id]?.length || 0})
                   </h4>
-                  <button className="btn" style={{ width: 'auto', padding: '0.4rem 0.8rem', fontSize: '0.8rem', background: 'rgba(255,255,255,0.05)', border: '1px solid var(--border)' }} onClick={() => setShowMcqModal(item.id)}>
-                    Add Question
-                  </button>
+                  <button className="btn" style={{ width: 'auto', padding: '0.4rem 0.8rem', fontSize: '0.8rem', background: 'rgba(255,255,255,0.05)', border: '1px solid var(--border)' }} onClick={() => { setEditingMcq(null); setNewMcq({ question: '', option_a: '', option_b: '', option_c: '', option_d: '', correct_answer: 'A' }); setShowMcqModal(item.id); }}>
+  Add Question
+</button>
                 </div>
 
                 <div style={{ display: 'grid', gap: '0.75rem' }}>
@@ -261,7 +268,14 @@ const ManageContent = () => {
                           <span style={{ color: m.correct_answer === 'D' ? 'var(--primary-color)' : 'inherit' }}>D: {m.option_d}</span>
                         </div>
                       </div>
-                      <button className="btn-icon" style={{ height: 'fit-content', color: '#ef4444' }} onClick={() => handleDeleteMcq(item.id, m.id)}><Trash2 size={16} /></button>
+                      <div style={{ display: 'flex', gap: '0.5rem', height: 'fit-content' }}>
+  <button className="btn-icon" onClick={() => {
+    setEditingMcq({ contentId: item.id, mcq: m });
+    setNewMcq({ question: m.question, option_a: m.option_a, option_b: m.option_b, option_c: m.option_c, option_d: m.option_d, correct_answer: m.correct_answer });
+    setShowMcqModal(item.id);
+  }}><Edit2 size={16} /></button>
+  <button className="btn-icon" style={{ color: '#ef4444' }} onClick={() => handleDeleteMcq(item.id, m.id)}><Trash2 size={16} /></button>
+</div>
                     </div>
                   ))}
                 </div>
@@ -315,7 +329,7 @@ const ManageContent = () => {
       {showMcqModal && (
         <div className="modal-overlay">
           <div className="auth-card" style={{ maxWidth: '600px' }}>
-            <h2 style={{ marginBottom: '1.5rem' }}>Add MCQ Question</h2>
+            <h2 style={{ marginBottom: '1.5rem' }}>{editingMcq ? 'Edit MCQ Question' : 'Add MCQ Question'}</h2>
             <form onSubmit={handleAddMcq}>
               <div className="form-group">
                 <label>Question</label>
@@ -349,8 +363,8 @@ const ManageContent = () => {
                 </select>
               </div>
               <div style={{ display: 'flex', gap: '1rem', marginTop: '2rem' }}>
-                <button type="button" className="btn" style={{ background: 'transparent', border: '1px solid var(--border)' }} onClick={() => setShowMcqModal(null)}>Cancel</button>
-                <button type="submit" className="btn">Add Question</button>
+                <button type="button" className="btn" style={{ background: 'transparent', border: '1px solid var(--border)' }} onClick={() => { setShowMcqModal(null); setEditingMcq(null); setNewMcq({ question: '', option_a: '', option_b: '', option_c: '', option_d: '', correct_answer: 'A' }); }}>Cancel</button>
+<button type="submit" className="btn">{editingMcq ? 'Save Changes' : 'Add Question'}</button>
               </div>
             </form>
           </div>

@@ -147,6 +147,21 @@ def create_mcq(
     db.commit()
     db.refresh(new_mcq)
     return new_mcq
+@router.put("/mcqs/{mcq_id}", response_model=schemas.MCQResponse)
+def update_mcq(
+    mcq_id: int,
+    data: schemas.MCQCreate,
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(auth.require_role([models.RoleEnum.hr, models.RoleEnum.admin]))
+):
+    mcq = db.query(models.MCQ).filter(models.MCQ.id == mcq_id).first()
+    if not mcq:
+        raise HTTPException(status_code=404, detail="MCQ not found")
+    for key, value in data.dict().items():
+        setattr(mcq, key, value)
+    db.commit()
+    db.refresh(mcq)
+    return mcq
 
 @router.delete("/mcqs/{mcq_id}")
 def delete_mcq(

@@ -29,52 +29,47 @@ const OnboardingFlow = () => {
     loadData();
   }, []);
 
-  const loadData = async () => {
+ const loadData = async () => {
+  try {
+    const [contentRes, progressRes] = await Promise.all([
+      api.get('/content/'),
+      api.get('/content/my-progress'),
+    ]);
+
+    const allContents = contentRes.data.filter(c => c.is_enabled !== false);
+    const completedSet = progressRes.data.filter(p => p.completed).map(p => p.content_id);
+    const doneIds = new Set(completedSet);
+
+    setContents(allContents);
+    setCompletedIds(doneIds);
+
+    let ackDone = false;
     try {
-      const [contentRes, progressRes] = await Promise.all([
-        api.get('/content/'),
-        api.get('/content/my-progress'),
-      ]);
-
-      const allContents = contentRes.data.filter(c => c.is_enabled !== false);
-      const doneIds = new Set(progressRes.data.filter(p => p.completed).map(p => p.content_id));
-
-      setContents(allContents);
-      setCompletedIds(doneIds);
-
-      // Check if acknowledgement already done
-      let ackDone = false;
-      try {
-        await api.get('/data/my-acknowledgement');
-        ackDone = true;
-      } catch {
-        ackDone = false;
-      }
-
-      // Step 1 = Acknowledgement
-      // Steps 2 to N+1 = Modules
-      // Step N+2 = Completion
-      if (!ackDone) {
-        setCurrentStep(1);
-      } else {
-        let resumeStep = 2;
-        for (let i = 0; i < allContents.length; i++) {
-          if (doneIds.has(allContents[i].id)) {
-            resumeStep = i + 3;
-          } else {
-            break;
-          }
-        }
-        const maxStep = allContents.length + 2;
-        setCurrentStep(Math.min(resumeStep, maxStep));
-      }
-    } catch (err) {
-      console.error('Failed to load onboarding data:', err);
-    } finally {
-      setLoading(false);
+      await api.get('/data/my-acknowledgement');
+      ackDone = true;
+    } catch {
+      ackDone = false;
     }
-  };
 
+    if (!ackDone) {
+      setCurrentStep(1);
+    } else {
+      // Find the first NOT-completed module by content id, not by stale index
+      let resumeStep = allContents.length + 2; // default: all done -> completion screen
+      for (let i = 0; i < allContents.length; i++) {
+        if (!doneIds.has(allContents[i].id)) {
+          resumeStep = i + 2; // step index for this exact module
+          break;
+        }
+      }
+      setCurrentStep(resumeStep);
+    }
+  } catch (err) {
+    console.error('Failed to load onboarding data:', err);
+  } finally {
+    setLoading(false);
+  }
+};
   const handleNext = () => {
     const totalSteps = contents.length + 2;
     setCurrentStep(prev => Math.min(prev + 1, totalSteps));
