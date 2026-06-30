@@ -57,6 +57,19 @@ const EmployeesPage = () => {
     const s = seconds % 60;
     return m > 0 ? `${m}m ${s}s` : `${s}s`;
   };
+  const downloadCSV = async (url, filename) => {
+  try {
+    const res = await api.get(url, { responseType: 'blob' });
+    const blob = new Blob([res.data], { type: 'text/csv' });
+    const link = document.createElement('a');
+    link.href = window.URL.createObjectURL(blob);
+    link.download = filename;
+    link.click();
+    window.URL.revokeObjectURL(link.href);
+  } catch (err) {
+    alert('Download failed: ' + (err.response?.data?.detail || err.message));
+  }
+};
 
   return (
     <div className="dashboard-layout">
@@ -95,15 +108,24 @@ const EmployeesPage = () => {
 
       {/* Main Content */}
       <div className="main-content">
-        <header style={{ marginBottom: '2rem' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-            <Users size={24} color="var(--primary-color)" />
-            <h1 style={{ fontSize: '1.75rem', fontWeight: '700' }}>Employees</h1>
-          </div>
-          <p style={{ color: 'var(--text-muted)', fontSize: '0.9rem' }}>
-            Click on an employee to view their detailed onboarding report
-          </p>
-        </header>
+        <header style={{ marginBottom: '2rem', display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+  <div>
+    <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+      <Users size={24} color="var(--primary-color)" />
+      <h1 style={{ fontSize: '1.75rem', fontWeight: '700' }}>Employees</h1>
+    </div>
+    <p style={{ color: 'var(--text-muted)', fontSize: '0.9rem' }}>
+      Click on an employee to view their detailed onboarding report
+    </p>
+  </div>
+  <button
+    className="btn"
+    style={{ width: 'auto' }}
+    onClick={() => downloadCSV('/employees/reports/csv/all', 'all_employee_reports.csv')}
+  >
+    Download All Reports (CSV)
+  </button>
+</header>
 
         <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
           {employees.map((emp) => {
@@ -230,6 +252,19 @@ const EmployeesPage = () => {
                               </tr>
                             ))}
                           </tbody>
+                          {/* Per-employee download */}
+<div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: '1rem' }}>
+  <button
+    className="btn"
+    style={{ width: 'auto', fontSize: '0.8rem', padding: '0.4rem 0.9rem' }}
+    onClick={() => downloadCSV(`/employees/${emp.id}/report/csv`, `report_${emp.name.replace(/\s+/g, '_')}.csv`)}
+  >
+    Download Report (CSV)
+  </button>
+</div>
+
+{/* Module Table */}
+<table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.85rem' }}></table>
                         </table>
                       </>
                     ) : null}

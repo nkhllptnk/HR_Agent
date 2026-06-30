@@ -2,6 +2,9 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 from typing import List, Optional
 from datetime import datetime, timedelta
+from fastapi.responses import StreamingResponse
+import csv
+import io
 import string
 import random
 
@@ -346,3 +349,51 @@ def get_my_report(
             "rating": rating,
         }
     }
+@router.get("/{user_id}/report/csv")
+def download_employee_report_csv(
+    user_id: int,
+    db: Session = Depends(database.get_db),
+    current_user: models.User = Depends(auth.require_role([models.RoleEnum.admin, models.RoleEnum.hr]))
+):
+    report = get_employee_report(user_id, db, current_user)
+    output = io.StringIO()
+    writer = csv.writer(output)
+    writer.writerow(["Employee Name", report["employee"]["name"]])
+    writer.writerow(["Email", report["employee"]["email"]])
+    writer.writerow(["Department", report["employee"]["department"]])
+    writer.writerow(["Overall Score %", report["summary"]["overall_score_pct"]])
+    writer.writerow(["Rating", report["summary"]["rating"]])
+    writer.writerow([])
+    writer.writerow(["Module", "Completed", "Score", "Total Questions", "Attempts", "Module Score %", "Completed At"])
+    for m in report["modules"]:
+        writer.writerow([m["module_title"], m["completed"], m["score"], m["total_questions"], m["attempt_count"], m["module_score_pct"], m["completed_at"]])
+    output.seek(0)
+    return StreamingResponse(
+        iter([output.getvalue()]),
+        media_type="text/csv",
+        headers={"Content-Disposition": f"attachment; filename=report_{report['employee']['name'].replace(' ', '_')}.csv"}
+    )
+
+
+@router.get("/reports/csv/all")
+def download_all_reports_csv(
+    db: Session = Depends(database.get_db),
+    current_user: models.User = Depends(auth.require_role([models.RoleEnum.admin, models.RoleEnum.hr]))
+):
+    employees = db.query(models.User).filter(models.User.role != models.RoleEnum.admin).all()
+    output = io.StringIO()
+    writer = csv.writer(output)
+    writer.writerow(["Name", "Email", "Department", "DOJ", "Overall Score %", "Rating", "Modules Completed", "Total Modules"])
+    for emp in employees:
+        report = get_employee_report(emp.id, db, current_user)
+        writer.writerow([
+            emp.name, emp.email, emp.department, emp.doj,
+            report["summary"]["overall_score_pct"], report["summary"]["rating"],
+            report["summary"]["completed_modules"], report["summary"]["total_modules"]
+        ])
+    output.seek(0)
+    return StreamingResponse(
+        iter([output.getvalue()]),
+        media_type="text/csv",
+        headers={"Content-Disposition": "attachment; filename=all_employee_reports.csv"}
+    )

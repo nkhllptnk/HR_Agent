@@ -4,6 +4,9 @@ from typing import List
 from datetime import datetime
 from .. import models, auth
 from ..database import get_db
+from fastapi.responses import StreamingResponse
+import csv
+import io
 
 router = APIRouter(prefix="/api/logs", tags=["Activity Logs"])
 
@@ -43,7 +46,28 @@ def get_all_logs(
         })
     return result
 
-
+@router.get("/csv")
+def download_logs_csv(
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(auth.require_role([models.RoleEnum.hr, models.RoleEnum.admin]))
+):
+    logs = db.query(models.ActivityLog).order_by(models.ActivityLog.id.desc()).all()
+    output = io.StringIO()
+    writer = csv.writer(output)
+    writer.writerow(["User Name", "User Email", "Action", "Details", "Timestamp"])
+    for log in logs:
+        user = db.query(models.User).filter(models.User.id == log.user_id).first()
+        writer.writerow([
+            user.name if user else "Unknown",
+            user.email if user else "Unknown",
+            log.action, log.details, log.timestamp
+        ])
+    output.seek(0)
+    return StreamingResponse(
+        iter([output.getvalue()]),
+        media_type="text/csv",
+        headers={"Content-Disposition": "attachment; filename=activity_logs.csv"}
+    )
 @router.get("/my-logs")
 def get_my_logs(
     db: Session = Depends(get_db),

@@ -50,6 +50,19 @@ const ActivityLogsPage = () => {
     if (!ts) return 'N/A';
     return new Date(ts).toLocaleString();
   };
+  const downloadCSV = async (url, filename) => {
+  try {
+    const res = await api.get(url, { responseType: 'blob' });
+    const blob = new Blob([res.data], { type: 'text/csv' });
+    const link = document.createElement('a');
+    link.href = window.URL.createObjectURL(blob);
+    link.download = filename;
+    link.click();
+    window.URL.revokeObjectURL(link.href);
+  } catch (err) {
+    alert('Download failed: ' + (err.response?.data?.detail || err.message));
+  }
+};
 
   return (
     <div className="dashboard-layout">
@@ -94,16 +107,25 @@ const ActivityLogsPage = () => {
             </div>
             <p style={{ color: 'var(--text-muted)', fontSize: '0.9rem' }}>Track all user actions across the portal</p>
           </div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', background: 'rgba(255,255,255,0.04)', border: '1px solid var(--border)', borderRadius: '0.5rem', padding: '0.5rem 1rem' }}>
-            <Search size={16} color="var(--text-muted)" />
-            <input
-              type="text"
-              placeholder="Search by name, action..."
-              value={search}
-              onChange={e => setSearch(e.target.value)}
-              style={{ background: 'transparent', border: 'none', outline: 'none', color: 'var(--text-main)', fontSize: '0.9rem', width: '220px' }}
-            />
-          </div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+  <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', background: 'rgba(255,255,255,0.04)', border: '1px solid var(--border)', borderRadius: '0.5rem', padding: '0.5rem 1rem' }}>
+    <Search size={16} color="var(--text-muted)" />
+    <input
+      type="text"
+      placeholder="Search by name, action..."
+      value={search}
+      onChange={e => setSearch(e.target.value)}
+      style={{ background: 'transparent', border: 'none', outline: 'none', color: 'var(--text-main)', fontSize: '0.9rem', width: '220px' }}
+    />
+  </div>
+  <button
+    className="btn"
+    style={{ width: 'auto' }}
+    onClick={() => downloadCSV('/logs/csv', 'activity_logs.csv')}
+  >
+    Download CSV
+  </button>
+</div>
         </header>
 
         {loading ? (
