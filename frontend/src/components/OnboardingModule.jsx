@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { PlayCircle, FileText, CheckCircle, AlertCircle, HelpCircle, ExternalLink } from 'lucide-react';
 import api from '../api';
+import PDFViewer from './PDFViewer';
 
 // ─── Helpers ────────────────────────────────────────────────────────────────
 
@@ -36,6 +37,7 @@ const YouTubeEnforcedPlayer = ({ url, onComplete }) => {
   const [ready, setReady] = useState(false);
   const [completed, setCompleted] = useState(false);
   const [percentWatched, setPercentWatched] = useState(0);
+ 
 
   const videoId = getYouTubeEmbedId(url);
 
@@ -201,48 +203,42 @@ const DocumentViewer = ({ url, onComplete }) => {
   const fullUrl = isUploadedFile(url) ? `http://localhost:8001${url}` : url;
   const ext = getFileExtension(url);
 
-  // Automatically mark content as viewed when loaded
-  useEffect(() => {
-    onComplete();
-  }, [url, onComplete]);
-
   if (ext === 'pdf') {
     return (
-      <div style={{ width: '100%', height: '550px', borderRadius: '0.5rem', overflow: 'hidden', border: '1px solid var(--border)' }}>
-        <iframe 
-          src={fullUrl} 
-          style={{ width: '100%', height: '100%', border: 'none' }} 
-          title="PDF Viewer" 
-        />
-      </div>
+      <PDFViewer url={url} onReadComplete={onComplete} />
     );
   }
+
+  // Fallback for non-PDF files (PPT, other)
+  const [opened, setOpened] = useState(false);
+  const handleOpen = () => {
+    setOpened(true);
+    onComplete();
+    window.open(fullUrl, '_blank');
+  };
 
   return (
     <div style={{
       minHeight: '300px', borderRadius: '0.75rem', border: '2px dashed var(--border)',
       display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
-      gap: '1rem', background: 'rgba(16,185,129,0.03)',
-    }}>
-      <FileText size={64} color="#6366f1" />
+      gap: '1rem', background: 'rgba(16,185,129,0.03)', cursor: 'pointer',
+    }} onClick={!opened ? handleOpen : undefined}>
+      <FileText size={64} color={opened ? '#10b981' : '#6366f1'} />
       <div style={{ textAlign: 'center' }}>
         <p style={{ fontWeight: '600', marginBottom: '0.25rem' }}>
-          Document ready
+          {opened ? '✅ Document Opened' : `Click to open ${ext.toUpperCase()}`}
         </p>
         <p style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>{fullUrl}</p>
       </div>
-      <a
-        href={fullUrl}
-        target="_blank"
-        rel="noopener noreferrer"
-        className="btn"
-        style={{ width: 'auto', display: 'flex', alignItems: 'center', gap: '0.5rem', textDecoration: 'none' }}
-      >
-        <ExternalLink size={16} /> Open / Download {ext.toUpperCase()}
-      </a>
+      {!opened && (
+        <button className="btn" style={{ width: 'auto', display: 'flex', alignItems: 'center', gap: '0.5rem' }} onClick={handleOpen}>
+          <ExternalLink size={16} /> Open {ext.toUpperCase()}
+        </button>
+      )}
     </div>
   );
 };
+
 
 // ─── Generic Video (non-YouTube, local upload) ──────────────────────────────
 const LocalVideoPlayer = ({ url, onComplete }) => {
@@ -507,10 +503,12 @@ const OnboardingModule = ({ content, alreadyCompleted, onNext }) => {
   const [contentViewed, setContentViewed] = useState(content.content_type !== 'video' || alreadyCompleted);
   const [phase, setPhase] = useState('content'); // 'content' | 'assessment'
   const [mcqs, setMcqs] = useState([]);
+   const [pdfAcknowledged, setPdfAcknowledged] = useState(false);
 
   // reset fully whenever the content changes
   useEffect(() => {
     setContentViewed(content.content_type !== 'video' || alreadyCompleted);
+    setPdfAcknowledged(false);
     setPhase('content');
     setMcqs([]);
     fetchMcqs();
@@ -525,9 +523,14 @@ const OnboardingModule = ({ content, alreadyCompleted, onNext }) => {
     }
   };
 
-  const handleContentComplete = useCallback(() => {
+  const handleContentComplete = useCallback((value = true) => {
+  if (content.content_type !== 'video') {
+    setPdfAcknowledged(value);
+    setContentViewed(value);
+  } else {
     setContentViewed(true);
-  }, []);
+  }
+}, [content.content_type]);
 
   const handleStartAssessment = () => {
     if (mcqs.length > 0) {
@@ -606,18 +609,21 @@ const OnboardingModule = ({ content, alreadyCompleted, onNext }) => {
         {!contentViewed && (
           <span style={{ fontSize: '0.8rem', color: '#f59e0b' }}>
             {content.content_type === 'video'
-              ? '⚠ Watch the full video to continue'
-              : '⚠ Open the document to continue'}
+  ? '⚠️ Watch the full video to continue'
+  : '⚠️ Read to the end of the document and acknowledge to continue'}
           </span>
         )}
         <button
-          className="btn"
-          style={{ width: 'auto' }}
-          disabled={!contentViewed}
-          onClick={handleStartAssessment}
-        >
-          {mcqs.length > 0 ? 'Start Assessment →' : 'Next Module →'}
-        </button>
+  className="btn"
+  style={{ width: 'auto' }}
+  disabled={
+    !contentViewed ||
+    (content.content_type !== 'video' && !pdfAcknowledged)
+  }
+  onClick={handleStartAssessment}
+>
+  {mcqs.length > 0 ? 'Start Assessment →' : 'Next Module →'}
+</button>
       </div>
     </div>
   );
