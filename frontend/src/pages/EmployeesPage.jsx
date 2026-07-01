@@ -71,7 +71,8 @@ const EmployeesPage = () => {
   }
 };
 
-  return (
+return (
+  <>
     <div className="dashboard-layout">
       {/* Sidebar */}
       <div className="sidebar" style={{ width: '260px' }}>
@@ -211,6 +212,17 @@ const EmployeesPage = () => {
                           </div>
                         </div>
 
+                        {/* Download button — OUTSIDE table */}
+                        <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: '1rem' }}>
+                          <button
+                            className="btn"
+                            style={{ width: 'auto', fontSize: '0.8rem', padding: '0.4rem 0.9rem' }}
+                            onClick={() => downloadCSV(`/employees/${emp.id}/report/csv`, `report_${emp.name.replace(/\s+/g, '_')}.csv`)}
+                          >
+                            Download Report (CSV)
+                          </button>
+                        </div>
+
                         {/* Module Table */}
                         <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.85rem' }}>
                           <thead>
@@ -236,7 +248,11 @@ const EmployeesPage = () => {
                                   {mod.total_questions > 0 ? `${mod.score}/${mod.total_questions}` : 'N/A'}
                                 </td>
                                 <td style={{ padding: '0.75rem', textAlign: 'center' }}>
-                                  {mod.completed ? `${mod.attempt_count} ${mod.attempt_count > 1 ? '(-25%)' : ''}` : '-'}
+                                  {mod.completed ? (
+                                    <span style={{ color: mod.attempt_count > 1 ? '#f59e0b' : '#22c55e' }}>
+                                      {mod.attempt_count} {mod.attempt_count > 1 ? '(-25%)' : '✓'}
+                                    </span>
+                                  ) : '-'}
                                 </td>
                                 <td style={{ padding: '0.75rem', textAlign: 'center', fontWeight: '600', color: mod.module_score_pct >= 75 ? '#22c55e' : '#ef4444' }}>
                                   {mod.completed ? `${mod.module_score_pct}%` : '-'}
@@ -252,19 +268,6 @@ const EmployeesPage = () => {
                               </tr>
                             ))}
                           </tbody>
-                          {/* Per-employee download */}
-<div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: '1rem' }}>
-  <button
-    className="btn"
-    style={{ width: 'auto', fontSize: '0.8rem', padding: '0.4rem 0.9rem' }}
-    onClick={() => downloadCSV(`/employees/${emp.id}/report/csv`, `report_${emp.name.replace(/\s+/g, '_')}.csv`)}
-  >
-    Download Report (CSV)
-  </button>
-</div>
-
-{/* Module Table */}
-<table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.85rem' }}></table>
                         </table>
                       </>
                     ) : null}
@@ -275,19 +278,20 @@ const EmployeesPage = () => {
           })}
         </div>
       </div>
-
-      <style>{`
-        .nav-item {
-          display: flex; align-items: center; gap: 0.75rem; width: 100%;
-          padding: 0.85rem 1rem; background: transparent; border: none;
-          color: var(--text-muted); font-weight: 500; font-size: 0.95rem;
-          border-radius: 0.75rem; cursor: pointer; transition: all 0.2s; text-align: left;
-        }
-        .nav-item:hover { background: rgba(255,255,255,0.05); color: var(--text-main); }
-        .nav-item.active { background: var(--surface-card); color: var(--primary-color); border: 1px solid var(--border); }
-      `}</style>
     </div>
-  );
+
+    <style>{`
+      .nav-item {
+        display: flex; align-items: center; gap: 0.75rem; width: 100%;
+        padding: 0.85rem 1rem; background: transparent; border: none;
+        color: var(--text-muted); font-weight: 500; font-size: 0.95rem;
+        border-radius: 0.75rem; cursor: pointer; transition: all 0.2s; text-align: left;
+      }
+      .nav-item:hover { background: rgba(255,255,255,0.05); color: var(--text-main); }
+      .nav-item.active { background: var(--surface-card); color: var(--primary-color); border: 1px solid var(--border); }
+    `}</style>
+  </>
+);
 };
 
 export default EmployeesPage;

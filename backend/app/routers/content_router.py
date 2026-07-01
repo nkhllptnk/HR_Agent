@@ -17,8 +17,22 @@ os.makedirs(UPLOAD_DIR, exist_ok=True)
 # --- Content Endpoints ---
 
 @router.get("/", response_model=List[schemas.ContentResponse])
-def get_all_content(db: Session = Depends(get_db)):
-    return db.query(models.Content).order_by(models.Content.order).all()
+def get_all_content(
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(auth.get_current_user)
+):
+    all_content = db.query(models.Content).order_by(models.Content.order).all()
+    if current_user.role in [models.RoleEnum.hr, models.RoleEnum.admin]:
+        return all_content
+    visible = []
+    for c in all_content:
+        if not c.visible_departments:
+            visible.append(c)
+        else:
+            allowed = [d.strip() for d in c.visible_departments.split(",")]
+            if current_user.department in allowed:
+                visible.append(c)
+    return visible
 @router.post("/", response_model=schemas.ContentResponse)
 def create_content(
     data: schemas.ContentCreate,
@@ -55,7 +69,7 @@ def complete_module(
     db: Session = Depends(get_db),
     current_user: models.User = Depends(auth.get_current_user)
 ):
-    passed = data.total_questions > 0 and (data.score / data.total_questions) >= 0.5
+    passed = data.total_questions == 0 or (data.score / data.total_questions) >= 0.5
 
     existing = db.query(models.ModuleProgress).filter(
         models.ModuleProgress.user_id == current_user.id,
@@ -239,10 +253,16 @@ def update_content(
     content_id: int,
     data: schemas.ContentCreate,
     db: Session = Depends(get_db),
-    current_user: models.User = Depends(
-        auth.require_role([models.RoleEnum.hr, models.RoleEnum.admin])
-    )
+    current_user: models.User = Depends(auth.require_role([models.RoleEnum.hr, models.RoleEnum.admin]))
 ):
+    content = db.query(models.Content).filter(models.Content.id == content_id).first()
+    if not content:
+        raise HTTPException(status_code=404, detail="Content not found")
+    for key, value in data.dict().items():
+        setattr(content, key, value)
+    db.commit()
+    db.refresh(content)
+    return content
     content = db.query(models.Content).filter(
         models.Content.id == content_id
     ).first()

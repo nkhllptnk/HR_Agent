@@ -35,12 +35,21 @@ def seed():
             "doj": "2024-05-01"
         },
         {
+            "name": "Nikhil Patnaik",
+            "email": "nikhil.patnaik@accops.com",
+            "personal_email": "nikhilpatnaik.work@gmail.com",
+            "password": "password123",
+            "role": RoleEnum.full_time,
+            "department": "Engineering",
+            "doj": "2026-05-25"
+        },
+        {
             "name": "Accops HR",
             "email": "hr@accops.com",
             "personal_email": "hr.accops@gmail.com",
             "password": "password123",
             "role": RoleEnum.hr,
-            "department": "Human Resources",
+            "department": "HR",
             "doj": "2023-10-15"
         },
         {

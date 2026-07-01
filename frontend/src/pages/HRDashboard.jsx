@@ -96,9 +96,21 @@ const HRDashboard = () => {
                   <input type="text" className="form-control" required value={newEmployee.name} onChange={e => setNewEmployee({...newEmployee, name: e.target.value})} placeholder="John Doe" />
                 </div>
                 <div className="form-group">
-                  <label>Department</label>
-                  <input type="text" className="form-control" required value={newEmployee.department} onChange={e => setNewEmployee({...newEmployee, department: e.target.value})} placeholder="Engineering" />
-                </div>
+  <label>Department</label>
+  <select className="form-control" required value={newEmployee.department} onChange={e => setNewEmployee({...newEmployee, department: e.target.value})}>
+    <option value="">Select Department</option>
+    <option value="Engineering">Engineering</option>
+    <option value="Sales">Sales</option>
+    <option value="Pre-sales">Pre-sales</option>
+    <option value="Marketing">Marketing</option>
+    <option value="Product Management">Product Management</option>
+    <option value="HR">HR</option>
+    <option value="IT">IT</option>
+    <option value="Administration">Administration</option>
+    <option value="Finance and Accounts">Finance and Accounts</option>
+    <option value="Customer Success">Customer Success</option>
+  </select>
+</div>
                 <div className="form-group">
                   <label>Personal Email</label>
                   <input type="email" className="form-control" required value={newEmployee.personal_email} onChange={e => setNewEmployee({...newEmployee, personal_email: e.target.value})} placeholder="john@gmail.com" />

@@ -7,20 +7,35 @@ import {
 import { useNavigate } from 'react-router-dom';
 import api from '../api';
 
+const DEPARTMENTS = [
+  'Engineering',
+  'Sales',
+  'Pre-sales',
+  'Marketing',
+  'Product Management',
+  'HR',
+  'IT',
+  'Administration',
+  'Finance and Accounts',
+  'Customer Success'
+];
+
 
 const ManageContent = () => {
   const [contents, setContents] = useState([]);
   const [showAddModal, setShowAddModal] = useState(false);
   const [editingContent, setEditingContent] = useState(null);
   const [newContent, setNewContent] = useState({
-    title: '', description: '', content_type: 'video', file_url: '', order: 0
-  });
+  title: '', description: '', content_type: 'video', file_url: '', order: 0, visible_departments: ''
+});
   const [editingMcq, setEditingMcq] = useState(null); // { contentId, mcq }
   const [mcqs, setMcqs] = useState({}); // content_id -> list of mcqs
   const [showMcqModal, setShowMcqModal] = useState(null); // content_id
   const [newMcq, setNewMcq] = useState({
     question: '', option_a: '', option_b: '', option_c: '', option_d: '', correct_answer: 'A'
   });
+  const [selectedDepts, setSelectedDepts] = useState([]);
+  const [allDepts, setAllDepts] = useState(true);
   const navigate = useNavigate();
 
   
@@ -50,21 +65,27 @@ const ManageContent = () => {
   };
 
   const handleAddContent = async (e) => {
-    e.preventDefault();
-    try {
-      if (editingContent) {
-        await api.put(`/content/${editingContent.id}`, newContent);
-      } else {
-        await api.post('/content/', newContent);
-      }
-      setShowAddModal(false);
-      setEditingContent(null);
-      setNewContent({ title: '', description: '', content_type: 'video', file_url: '', order: contents.length });
-      fetchContents();
-    } catch (err) {
-      alert('Error: ' + err.message);
+  e.preventDefault();
+  try {
+    const payload = {
+      ...newContent,
+      visible_departments: allDepts ? null : selectedDepts.join(',')
+    };
+    if (editingContent) {
+      await api.put(`/content/${editingContent.id}`, payload);
+    } else {
+      await api.post('/content/', payload);
     }
-  };
+    setShowAddModal(false);
+    setEditingContent(null);
+    setNewContent({ title: '', description: '', content_type: 'video', file_url: '', order: contents.length, visible_departments: '' });
+    setAllDepts(true);
+    setSelectedDepts([]);
+    fetchContents();
+  } catch (err) {
+    alert('Error: ' + err.message);
+  }
+};
 
   const handleDeleteContent = async (id) => {
     if (!window.confirm('Are you sure you want to delete this content?')) return;
@@ -182,9 +203,15 @@ const ManageContent = () => {
             </div>
             <p style={{ color: 'var(--text-muted)', fontSize: '0.9rem' }}>Upload videos, PDFs, and create assessment MCQs</p>
           </div>
-          <button className="btn" style={{ width: 'auto' }} onClick={() => { setEditingContent(null); setNewContent({ title: '', description: '', content_type: 'video', file_url: '', order: contents.length }); setShowAddModal(true); }}>
-            <Plus size={20} style={{ marginRight: '0.5rem' }} /> Add Content
-          </button>
+          <button className="btn" style={{ width: 'auto' }} onClick={() => {
+  setEditingContent(null);
+  setNewContent({ title: '', description: '', content_type: 'video', file_url: '', order: contents.length, visible_departments: '' });
+  setAllDepts(true);
+  setSelectedDepts([]);
+  setShowAddModal(true);
+}}>
+  <Plus size={20} style={{ marginRight: '0.5rem' }} /> Add Content
+</button>
         </header>
 
         <div style={{ display: 'grid', gap: '1.5rem' }}>
@@ -226,6 +253,11 @@ const ManageContent = () => {
   )}
 </div>
                     <p style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>{item.description || 'No description'}</p>
+{item.visible_departments && (
+  <p style={{ fontSize: '0.72rem', color: '#a855f7', marginTop: '0.25rem' }}>
+    Visible to: {item.visible_departments.split(',').join(', ')}
+  </p>
+)}
                   </div>
                 </div>
                 <div style={{ display: 'flex', gap: '0.75rem', alignItems: 'center' }}>
@@ -239,7 +271,25 @@ const ManageContent = () => {
                       <button className="btn-icon" title="Move Down" onClick={() => handleReorder(item.id, 'down')}><ArrowDown size={16} /></button>
                     </>
                   )}
-                  <button className="btn-icon" onClick={() => { setEditingContent(item); setNewContent(item); setShowAddModal(true); }}><Edit2 size={18} /></button>
+                  <button className="btn-icon" onClick={() => {
+  setEditingContent(item);
+  setNewContent({
+  title: item.title || '',
+  description: item.description || '',
+  content_type: item.content_type || 'video',
+  file_url: item.file_url || '',
+  order: item.order || 0,
+  visible_departments: item.visible_departments || ''
+});
+  if (item.visible_departments) {
+    setAllDepts(false);
+    setSelectedDepts(item.visible_departments.split(','));
+  } else {
+    setAllDepts(true);
+    setSelectedDepts([]);
+  }
+  setShowAddModal(true);
+}}><Edit2 size={18} /></button>
                   {!item.is_intro && (
                     <button className="btn-icon" style={{ color: '#ef4444' }} onClick={() => handleDeleteContent(item.id)}><Trash2 size={18} /></button>
                   )}
@@ -300,22 +350,65 @@ const ManageContent = () => {
                 <textarea className="form-control" rows="2" value={newContent.description} onChange={e => setNewContent({...newContent, description: e.target.value})} />
               </div>
               <div className="form-group">
-                <label>Type</label>
-                <select className="form-control" value={newContent.content_type} onChange={e => setNewContent({...newContent, content_type: e.target.value})}>
-                  <option value="video">Video URL / Upload</option>
-                  <option value="pdf">PDF Document</option>
-                </select>
-              </div>
-              <div className="form-group">
-                <label>File URL or Upload</label>
-                <div style={{ display: 'flex', gap: '0.5rem' }}>
-                  <input type="text" className="form-control" value={newContent.file_url} onChange={e => setNewContent({...newContent, file_url: e.target.value})} placeholder="https://youtube.com/..." />
-                  <label className="btn" style={{ width: 'auto', cursor: 'pointer', display: 'flex', alignItems: 'center' }}>
-                    <Upload size={18} />
-                    <input type="file" style={{ display: 'none' }} onChange={handleFileUpload} />
-                  </label>
-                </div>
-              </div>
+  <label>Type</label>
+  <select className="form-control" value={newContent.content_type} onChange={e => setNewContent({...newContent, content_type: e.target.value})}>
+    <option value="video">Video URL / Upload</option>
+    <option value="pdf">PDF Document</option>
+  </select>
+</div>
+<div className="form-group">
+  <label>File URL or Upload</label>
+  <div style={{ display: 'flex', gap: '0.5rem' }}>
+    <input type="text" className="form-control" value={newContent.file_url} onChange={e => setNewContent({...newContent, file_url: e.target.value})} placeholder="https://youtube.com/..." />
+    <button
+  type="button"
+  className="btn"
+  style={{ width: 'auto', display: 'flex', alignItems: 'center' }}
+  onClick={() => document.getElementById('file-upload-input').click()}
+>
+  <Upload size={18} />
+</button>
+<input
+  id="file-upload-input"
+  type="file"
+  style={{ display: 'none' }}
+  onChange={handleFileUpload}
+/>
+  </div>
+</div>
+<div className="form-group">
+  <label>Visible To</label>
+  <div style={{ marginBottom: '0.5rem' }}>
+    <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', cursor: 'pointer', fontSize: '0.9rem' }}>
+      <input
+        type="checkbox"
+        checked={allDepts}
+        onChange={(e) => {
+          setAllDepts(e.target.checked);
+          if (e.target.checked) setSelectedDepts([]);
+        }}
+      />
+      All Departments
+    </label>
+  </div>
+  {!allDepts && (
+    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.5rem', padding: '0.75rem', background: 'rgba(255,255,255,0.03)', borderRadius: '0.5rem', maxHeight: '180px', overflowY: 'auto' }}>
+      {DEPARTMENTS.map(dept => (
+        <label key={dept} style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: '0.85rem', cursor: 'pointer' }}>
+          <input
+            type="checkbox"
+            checked={selectedDepts.includes(dept)}
+            onChange={(e) => {
+              if (e.target.checked) setSelectedDepts([...selectedDepts, dept]);
+              else setSelectedDepts(selectedDepts.filter(d => d !== dept));
+            }}
+          />
+          {dept}
+        </label>
+      ))}
+    </div>
+  )}
+</div>
               <div style={{ display: 'flex', gap: '1rem', marginTop: '2rem' }}>
                 <button type="button" className="btn" style={{ background: 'transparent', border: '1px solid var(--border)' }} onClick={() => setShowAddModal(false)}>Cancel</button>
                 <button type="submit" className="btn">Save Content</button>

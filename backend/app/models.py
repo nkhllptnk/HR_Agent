@@ -62,7 +62,8 @@ class Content(Base):
     file_url = Column(String, nullable=True)
     order = Column(Integer, default=0)
     is_intro = Column(Boolean, default=False)
-    is_enabled = Column(Boolean, default=True)   
+    is_enabled = Column(Boolean, default=True)
+    visible_departments = Column(String, nullable=True)  # comma-separated, e.g. "Engineering,IT" or NULL = all
 
 class MCQ(Base):
     __tablename__ = "mcqs"

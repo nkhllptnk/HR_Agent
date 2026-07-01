@@ -71,10 +71,16 @@ const OnboardingFlow = () => {
   }
 };
   const handleNext = () => {
-    const totalSteps = contents.length + 2;
-    setCurrentStep(prev => Math.min(prev + 1, totalSteps));
-  };
-
+  // Mark the module just completed (if currentStep falls in module range) as done locally
+  if (currentStep >= 2 && currentStep <= contents.length + 1) {
+    const justCompletedId = contents[currentStep - 2]?.id;
+    if (justCompletedId) {
+      setCompletedIds(prev => new Set(prev).add(justCompletedId));
+    }
+  }
+  const totalSteps = contents.length + 2;
+  setCurrentStep(prev => Math.min(prev + 1, totalSteps));
+};
   // Step 1 = Acknowledgement, Steps 2..N+1 = Modules, Step N+2 = Completion
   const dynamicSteps = [
     { id: 1, label: 'Acknowledgement' },
@@ -116,7 +122,7 @@ const OnboardingFlow = () => {
     );
   }
 
-  const completionPct = Math.round(((currentStep - 1) / totalSteps) * 100);
+  const completionPct = contents.length > 0 ? Math.round((completedIds.size / contents.length) * 100) : 0;
 
   return (
     <div className="dashboard-layout" style={{ flexDirection: 'column' }}>

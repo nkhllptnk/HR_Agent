@@ -41,7 +41,8 @@ class ContentBase(BaseModel):
     file_url: Optional[str] = None
     order: int = 0
     is_intro: bool = False
-    is_enabled: bool = True    
+    is_enabled: bool = True   
+    visible_departments: Optional[str] = None 
 
 class ContentCreate(ContentBase):
     pass
